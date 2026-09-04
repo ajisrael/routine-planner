@@ -1,0 +1,25 @@
+{
+  "name": "schedule-planner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Family routine time-blocking planner",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run build -w @planner/shared && concurrently -k -n server,web \"npm run dev -w @planner/server\" \"npm run dev -w @planner/web\"",
+    "build": "npm run build -w @planner/shared && npm run build -w @planner/server && npm run build -w @planner/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "start": "node server/dist/index.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
