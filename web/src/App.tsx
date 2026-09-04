@@ -1,6 +1,6 @@
 import { useState } from "react";
-import TasksView from "./views/TasksView.tsx";
-import CalendarView from "./views/CalendarView.tsx";
+import TasksView from "./views/TasksView";
+import CalendarView from "./views/CalendarView";
 
 type Tab = "tasks" | "calendar";
 
