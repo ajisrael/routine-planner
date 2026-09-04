@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en" data-theme="caramellatte">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Routine Planner — Theme Ideas</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/daisyui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/themes.css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.4/dist/index.global.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :where(.grid, .flex, .layout-grid, .layout-flex) > *,
+  :where([style*="display: grid"], [style*="display:grid"], [style*="display: flex"], [style*="display:flex"]) > * { min-width: 0; }
+  :where(p, h1, h2, h3, h4, li, span, .badge) { overflow-wrap: anywhere; }
+
+  .evb { position: absolute; border-radius: .35rem; padding: 1px 5px; font-size: 9px; line-height: 1.5; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--ev-cat) 18%, var(--color-base-100)); border-left: 3px solid var(--ev-cat); color: var(--color-base-content); }
+  .evb.conflict { box-shadow: 0 0 0 1.5px var(--color-error); }
+  .evb .t { font-weight: 500; opacity: .65; font-size: 8.5px; }
+  .avatar-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; color: white; font-size: 8px; font-weight: 700; flex: none; }
+  .avatar-dot.stack { margin-left: -5px; box-shadow: 0 0 0 1.5px var(--color-base-100); }
+  .daymini { position: relative; border-radius: .5rem; background: var(--color-base-200); background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 23px, color-mix(in oklab, var(--color-base-content) 8%, transparent) 23px, color-mix(in oklab, var(--color-base-content) 8%, transparent) 24px); overflow: hidden; }
+  .brandbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-primary); color: var(--color-primary-content); font-weight: 700; font-size: 12px; }
+  .theme-card :where(button) { pointer-events: none; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); vertical-align: -2px; }
+  /* ---- custom themes (DaisyUI v5 var overrides) ---- */
+  [data-theme="tokyonight"] {
+    --color-base-100: #1a1b26; --color-base-200: #16161e; --color-base-300: #101017;
+    --color-base-content: #c0caf5;
+    --color-primary: #7aa2f7; --color-primary-content: #1a1b26;
+    --color-secondary: #bb9af7; --color-secondary-content: #1a1b26;
+    --color-accent: #9ece6a; --color-accent-content: #1a1b26;
+    --color-neutral: #24283b; --color-neutral-content: #c0caf5;
+    --color-info: #7dcfff; --color-info-content: #1a1b26;
+    --color-success: #9ece6a; --color-success-content: #1a1b26;
+    --color-warning: #e0af68; --color-warning-content: #1a1b26;
+    --color-error: #f7768e; --color-error-content: #1a1b26;
+    --radius-selector: 0.5rem; --radius-field: 0.5rem; --radius-box: 1rem;
+    --size-selector: 0.25rem; --size-field: 0.25rem;
+    --border: 1px; --depth: 1; --noise: 0;
+  }
+  [data-theme="pasteldusk"] {
+    --color-base-100: #2b2b33; --color-base-200: #24242b; --color-base-300: #1d1d23;
+    --color-base-content: #eae8f2;
+    --color-primary: #b7a6ea; --color-primary-content: #2b2b33;
+    --color-secondary: #93d6c6; --color-secondary-content: #1f3a34;
+    --color-accent: #f4b6c5; --color-accent-content: #43222c;
+    --color-neutral: #3d3d47; --color-neutral-content: #eae8f2;
+    --color-info: #9cc7e8; --color-info-content: #1e3346;
+    --color-success: #a3d4ae; --color-success-content: #1e3a26;
+    --color-warning: #ecd3a0; --color-warning-content: #443a1e;
+    --color-error: #e89da8; --color-error-content: #44232a;
+    --radius-selector: 0.5rem; --radius-field: 0.5rem; --radius-box: 1rem;
+    --size-selector: 0.25rem; --size-field: 0.25rem;
+    --border: 1px; --depth: 1; --noise: 0;
+  }
+  [data-theme="mist"] {
+    --color-base-100: #f5f5f7; --color-base-200: #ebebef; --color-base-300: #dfe0e5;
+    --color-base-content: #43434f;
+    --color-primary: #b3a5f2; --color-primary-content: #33304a;
+    --color-secondary: #8fd4c2; --color-secondary-content: #24413a;
+    --color-accent: #f6aec0; --color-accent-content: #4a2831;
+    --color-neutral: #45454f; --color-neutral-content: #f5f5f7;
+    --color-info: #85b9e2; --color-info-content: #22384c;
+    --color-success: #85c99c; --color-success-content: #1f3d2a;
+    --color-warning: #eac57c; --color-warning-content: #463a18;
+    --color-error: #e6909b; --color-error-content: #48262c;
+    --radius-selector: 0.5rem; --radius-field: 0.5rem; --radius-box: 1rem;
+    --size-selector: 0.25rem; --size-field: 0.25rem;
+    --border: 1px; --depth: 1; --noise: 0;
+  }
+
+  label.pick { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: .5rem; cursor: pointer; }
+  label.pick:hover { background: color-mix(in oklab, var(--color-primary) 8%, transparent); }
+</style>
+</head>
+<body class="bg-base-200 min-h-screen text-base-content">
+
+<div class="max-w-6xl mx-auto p-4 lg:p-8 flex flex-col gap-6">
+
+  <!-- header -->
+  <header class="flex flex-col gap-3">
+    <p class="text-xs uppercase tracking-widest opacity-50 font-semibold">Routine Planner · design review</p>
+    <h1 class="text-3xl font-bold">Which theme should we ship? — <span class="text-success">decided ✓</span></h1>
+    <div role="alert" class="alert alert-success text-sm"><span><b>Pastel</b> (light) + <b>Pastel Dusk</b> (dark, custom) with a navbar toggle — now applied to the main prototype and documented in DESIGN.md.</span></div>
+    <p class="opacity-70 max-w-3xl text-sm">Each card below is a <b>real preview</b> of the app's components rendered in that theme — same category hex colors (Chores · School · Family · Meals · Self-care), same person avatars, same event blocks. What to check:</p>
+    <div class="flex flex-wrap gap-2 text-xs">
+      <span class="badge badge-outline gap-1">① Are event blocks legible?</span>
+      <span class="badge badge-outline gap-1">② Do category + person colors harmonize?</span>
+      <span class="badge badge-outline gap-1">③ Comfy for evening planning?</span>
+    </div>
+  </header>
+
+  <!-- live demo -->
+  <section id="live-demo" data-theme="pastel" class="rounded-2xl border border-base-content/10 overflow-hidden shadow-sm">
+    <div class="brandbar">🗓️ Routine Planner <span class="ml-auto text-[10px] font-medium opacity-70" id="live-label">live preview · pastel (chosen light theme)</span></div>
+    <div class="p-4 lg:p-5 bg-base-200 grid lg:grid-cols-[1fr_1.2fr] gap-4 items-start">
+      <div class="flex flex-col gap-3">
+        <div class="card bg-base-100 border border-base-content/10">
+          <div class="card-body p-4 gap-2">
+            <div class="flex items-center gap-2">
+              <span class="swatch" style="background:#f59e0b"></span>
+              <h3 class="font-bold text-sm">Soccer Practice</h3>
+              <span class="ml-auto flex">avatar stack here</span>
+            </div>
+            <div class="flex flex-wrap gap-1.5 text-[11px]" id="live-badges">
+              <span class="badge badge-sm badge-ghost">🕒 60 min</span>
+              <span class="badge badge-sm badge-ghost">🔁 Fri</span>
+              <span class="badge badge-sm badge-primary badge-soft">📅 1× this week</span>
+            </div>
+            <div class="flex gap-2 mt-1">
+              <button class="btn btn-primary btn-xs">Save task</button>
+              <button class="btn btn-ghost btn-xs border border-base-content/15">Cancel</button>
+              <button class="btn btn-error btn-xs btn-soft ml-auto">Delete</button>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 text-[11px] opacity-80 flex-wrap">
+          <span class="font-semibold mr-1">People:</span>
+          <span class="flex">M D A L avatars</span>
+          <span class="badge badge-soft badge-success">no conflicts</span>
+          <span class="badge badge-soft badge-error">⚠ 2 conflicts</span>
+        </div>
+      </div>
+      <div class="rounded-xl border border-base-content/10 bg-base-100 p-3">
+        <div class="text-[10px] uppercase tracking-wide opacity-50 mb-2">Plan · week of Aug 31</div>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="daymini h-36" data-lavish-action>
+            <div class="evb" style="top:10px;left:6px;right:6px;height:26px;--ev-cat:#84cc16">Family Dinner <span class="t">18:00</span></div>
+            <div class="evb" style="top:44px;left:6px;right:6px;height:26px;--ev-cat:#0ea5e9">Homework <span class="t">16:00</span></div>
+            <div class="evb" style="top:78px;left:6px;right:6px;height:26px;--ev-cat:#a78bfa">Piano <span class="t">16:30</span></div>
+            <div class="evb" style="top:112px;left:6px;right:6px;height:22px;--ev-cat:#f43f5e">Bedtime <span class="t">20:00</span></div>
+          </div>
+          <div class="daymini h-36" data-lavish-action>
+            <div class="evb" style="top:10px;left:6px;right:6px;height:26px;--ev-cat:#f59e0b">Dishwasher <span class="t">19:30</span></div>
+            <div class="evb" style="top:44px;left:6px;right:6px;height:26px;--ev-cat:#059669">Walk Dog <span class="t">17:00</span></div>
+            <div class="evb" style="top:78px;left:6px;right:6px;height:26px;--ev-cat:#0284c7">Grocery <span class="t">10:00</span></div>
+          </div>
+          <div class="daymini h-36" data-lavish-action>
+            <div class="evb conflict" style="top:14px;left:5px;right:52%;height:52px;--ev-cat:#84cc16">Dinner <span class="t">18:00</span></div>
+            <div class="evb conflict" style="top:34px;left:52%;right:5px;height:52px;--ev-cat:#f43f5e">Soccer ⚠ <span class="t">18:15</span></div>
+            <div class="evb" style="top:96px;left:6px;right:6px;height:22px;--ev-cat:#f59e0b">Laundry <span class="t">10:00</span></div>
+          </div>
+        </div>
+        <p class="text-[10px] opacity-50 mt-2">Friday column shows a shared-person conflict packed side by side.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- theme cards -->
+  <section class="grid md:grid-cols-2 gap-4" id="theme-grid"></section>
+
+  <!-- decision inputs -->
+  <section class="grid lg:grid-cols-2 gap-4">
+    <form data-lavish-question="theme" class="card bg-base-100 border border-base-content/10">
+      <div class="card-body p-4 gap-2">
+        <h3 class="card-title text-base">1 · Pick the theme</h3>
+        <p class="text-xs opacity-60">Clicking a theme re-themes the live demo above so you can compare in context. Queue the one you want.</p>
+        <div class="grid sm:grid-cols-2 gap-1 mt-1" id="pick-list"></div>
+        <button type="submit" class="btn btn-primary btn-sm mt-2">Queue this answer</button>
+      </div>
+    </form>
+    <div class="flex flex-col gap-4">
+      <form data-lavish-question="darkmode" class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-2">
+          <h3 class="card-title text-base">2 · Light vs dark strategy</h3>
+          <p class="text-xs opacity-60 font-medium">Noted from your message: <b>light + dark with a toggle</b> — this pick decides which two themes pair up.</p>
+          <div class="flex flex-col gap-1 text-sm mt-1">
+            <label class="pick"><input type="radio" name="darkmode" value="light-only"> Ship light theme only (simplest)</label>
+            <label class="pick"><input type="radio" name="darkmode" value="dark-only"> Ship dark theme only</label>
+            <label class="pick"><input type="radio" name="darkmode" value="both-toggle" checked> Both + a toggle in the navbar (decided ✓)</label>
+            <label class="pick"><input type="radio" name="darkmode" value="auto"> Auto by time of day (evenings → dark)</label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm mt-2">Queue this answer</button>
+        </div>
+      </form>
+      <form data-lavish-question="notes" class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-2">
+          <h3 class="card-title text-base">3 · Tweaks?</h3>
+          <p class="text-xs opacity-60">e.g. "emerald but warmer background", "bigger category dots"…</p>
+          <textarea name="notes" class="textarea w-full text-sm" rows="2"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm">Queue this answer</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <footer class="text-xs opacity-50 pb-6">
+    Themes render via nested <code>data-theme</code> sections — the shipped app needs only one attribute swap.
+    Category &amp; person hex colors are data (DB-driven), so they stay identical across themes.
+  </footer>
+</div>
+
+<script>
+'use strict';
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const CAT = { chores:'#f59e0b', school:'#0ea5e9', family:'#f43f5e', meals:'#84cc16', selfcare:'#a78bfa' };
+const PPL = { mom:'#e11d48', dad:'#0284c7', aria:'#d97706', levi:'#059669' };
+
+const THEMES = [
+  { id:'caramellatte', label:'Caramel Latte', vibe:'cozy · warm cream', pick:true,
+    desc:'The current design. Creamy paper background with caramel-brown primary — feels like the family kitchen table, not a corporate tool.',
+    pros:['Category colors pop gently against cream','Warm = on-brand for family routines','Great daytime legibility'],
+    cons:['Least "app-like" of the options (some may find it too soft)'] },
+  { id:'tokyonight', label:'Tokyo Night', vibe:'grey-blue · pastel neon', custom:true, fav:true,
+    desc:'The editor-favorite dark palette: deep grey-blue night surfaces with pastel blue, purple and green accents. Your "grey with pastel colors" idea — quiet, focused, subtle neon undertone.',
+    pros:['Pastel accents glow beautifully on grey','Premium, focused feel for planning','Excellent evening comfort'],
+    cons:['Cool temperature — least "family warm"','Error pink sits close to the Family (rose) category'] },
+  { id:'pasteldusk', label:'Pastel Dusk', vibe:'charcoal · soft pastels', custom:true, won:true,
+    desc:'Neutral charcoal-grey with soft lavender, mint and pink accents — the gentler sibling of Tokyo Night. Calm grey base, pastel personality.',
+    pros:['Grey base keeps category colors in charge','Softer and warmer than Night/Tokyo Night','Distinctive without being loud'],
+    cons:['Custom palette — needs contrast pass','Lavender primary is less "actionable" than blue'] },
+  { id:'mist', label:'Mist', vibe:'light grey · pastel accents', custom:true,
+    desc:'The light sibling: airy grey surfaces with pastel lavender/mint/pink accents. A modern grey take on Pastel — what "grey with pastels" looks like in daylight.',
+    pros:['Clean, neutral canvas for category colors','Pairs naturally with Pastel Dusk for the toggle'],
+    cons:['Pastel primary reads softer than buttons usually should','Less cozy than Caramel Latte'] },
+  { id:'pastel', label:'Pastel', vibe:'soft · kid-friendly', won:true,
+    desc:'Candy-soft pastels. Playful and child-friendly — nice if the kids will look at it, but the lowest contrast of the light themes.',
+    pros:['Friendly, approachable','Pairs well with kid personas'],
+    cons:['Lower text contrast','Category tints can wash out'] },
+  { id:'emerald', label:'Emerald', vibe:'fresh · energetic',
+    desc:'Crisp white surfaces with garden-green primary. The most "productivity app" of the light options.',
+    pros:['Highest clarity on white','Green reads as "routine/habit"'],
+    cons:['Cooler, less family-warm','Meals (lime) category sits close to primary green'] },
+  { id:'sunset', label:'Sunset', vibe:'joyful · warm coral',
+    desc:'Coral-orange primary on warm light surfaces. Joyful and distinctive; strongest personality of the light themes.',
+    pros:['Distinctive & warm','Family (rose) category harmonizes'],
+    cons:['Chores (amber) vs primary orange can blur','Bold color everywhere may tire over long sessions'] },
+  { id:'nord', label:'Nord', vibe:'calm · nordic dusk',
+    desc:'Muted nordic blue-grays. Calm and focused, excellent for concentration — but reads "work tool" more than "family wall calendar".',
+    pros:['Very easy on the eyes','Category colors stay visible'],
+    cons:['Cool temperature — least family-warm','Person avatar reds/oranges shift tone'] },
+  { id:'night', label:'Night', vibe:'true dark · high contrast',
+    desc:'Near-black surfaces. The classic dark mode — best for late-evening planning sessions, phones in bed, low-light rooms.',
+    pros:['Best for evening use','Category colors glow nicely'],
+    cons:['Needs a light/dark toggle strategy','Chores amber & meals lime are the brightest elements on screen'] },
+  { id:'dim', label:'Dim', vibe:'soft dark · gray',
+    desc:'Gentle gray-dark (not black). Darker than light, softer than Night — a middle path if you want dark without the drama.',
+    pros:['Softer than Night','Category tints stay muted & legible'],
+    cons:['Less premium-looking than Night','Middle-ground can feel undecided'] },
+  { id:'coffee', label:'Coffee', vibe:'warm brown dark',
+    desc:'Dark brown with warm cream text — the dark-mode sibling of Caramel Latte. Cozy evening mood while keeping the family-warm brand.',
+    pros:['Brand-consistent with the current pick','Warm dark = unique vs typical blue-dark apps'],
+    cons:['School (sky) & Family (rose) pop harder than the warm categories'] },
+];
+
+function avatarStackHTML(){
+  return ['mom','dad','aria','levi'].map((p,i) =>
+    `<span class="avatar-dot${i?' stack':''}" style="background:${PPL[p]}" title="${p}">${p[0].toUpperCase()}</span>`).join('');
+}
+function cardHTML(t){
+  const li = a => a.map(x => `<li class="flex gap-1.5"><span class="opacity-60">✓</span><span>${x}</span></li>`).join('');
+  return `<section class="theme-card" data-theme="${t.id}" data-lavish-action>
+    <div class="card bg-base-100 border border-base-content/10 overflow-hidden h-full">
+      <div class="brandbar">🗓️ Routine Planner <span class="ml-auto text-[10px] font-medium opacity-70">${t.label}${t.pick ? ' · current pick' : ''}</span></div>
+      <div class="p-3 flex flex-col gap-2 bg-base-200">
+        <div class="daymini grid grid-cols-2 gap-2 p-2 h-40">
+          <div class="daymini" data-lavish-action>
+            <div class="evb" style="top:8px;left:5px;right:5px;height:24px;--ev-cat:${CAT.meals}">Dinner <span class="t">18:00</span></div>
+            <div class="evb" style="top:40px;left:5px;right:5px;height:24px;--ev-cat:${CAT.school}">Homework <span class="t">16:00</span></div>
+            <div class="evb" style="top:72px;left:5px;right:5px;height:24px;--ev-cat:${CAT.selfcare}">Piano <span class="t">16:30</span></div>
+            <div class="evb" style="top:104px;left:5px;right:5px;height:20px;--ev-cat:${CAT.family}">Bedtime <span class="t">20:00</span></div>
+          </div>
+          <div class="daymini" data-lavish-action>
+            <div class="evb conflict" style="top:10px;left:4px;right:52%;height:44px;--ev-cat:${CAT.meals}">Dinner <span class="t">18:00</span></div>
+            <div class="evb conflict" style="top:26px;left:52%;right:4px;height:44px;--ev-cat:${CAT.family}">Soccer ⚠ <span class="t">18:15</span></div>
+            <div class="evb" style="top:72px;left:5px;right:5px;height:24px;--ev-cat:${CAT.chores}">Laundry <span class="t">10:00</span></div>
+            <div class="evb" style="top:104px;left:5px;right:5px;height:20px;--ev-cat:${CAT.chores}">Dishes <span class="t">19:30</span></div>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          ${avatarStackHTML()}
+          <span class="ml-auto flex gap-1">
+            <button class="btn btn-primary btn-xs">Save</button>
+            <button class="btn btn-ghost btn-xs border border-base-content/15">Cancel</button>
+          </span>
+        </div>
+        <div class="flex flex-wrap gap-1">
+          <span class="badge badge-soft badge-success badge-xs">no conflicts</span>
+          <span class="badge badge-soft badge-error badge-xs">⚠ 2 conflicts</span>
+          <span class="badge badge-ghost badge-xs">Daily</span>
+          <span class="badge badge-soft badge-warning badge-xs">unscheduled</span>
+        </div>
+      </div>
+      <div class="p-3 pt-2 text-xs flex flex-col gap-1.5">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-bold text-sm">${t.label}</span>
+          <span class="badge badge-xs badge-ghost">${t.vibe}</span>
+          ${t.custom ? '<span class="badge badge-xs badge-accent">custom</span>' : ''}
+          ${t.won ? '<span class="badge badge-xs badge-success">chosen ✓</span>' : ''}
+          ${t.fav ? '<span class="badge badge-xs badge-primary">matches your ask</span>' : ''}
+          ${t.pick ? '<span class="badge badge-xs badge-primary">current</span>' : ''}
+        </div>
+        <p class="opacity-70 leading-snug">${t.desc}</p>
+        <ul class="mt-0.5 flex flex-col gap-0.5">${li(t.pros)}</ul>
+        <ul class="flex flex-col gap-0.5 text-error/90">${li(t.cons)}</ul>
+      </div>
+    </div>
+  </section>`;
+}
+$('#theme-grid').innerHTML = THEMES.map(cardHTML).join('');
+
+/* live preview re-theming (local visual state only) */
+const DOT = { caramellatte:'#c98a5e', tokyonight:'#7aa2f7', pasteldusk:'#b7a6ea', mist:'#b3a5f2', pastel:'#f9a8d4', emerald:'#059669', sunset:'#fb923c', nord:'#81a1c1', night:'#6366f1', dim:'#737ba3', coffee:'#a67c52' };
+$('#pick-list').innerHTML = THEMES.map(t =>
+  `<label class="pick"><input type="radio" name="theme" value="${t.id}" ${t.id==='pastel'?'checked':''}>
+     <span class="swatch" style="background:${DOT[t.id] || '#888'}"></span>${t.label}${t.won?' <span class="opacity-50 text-xs">(chosen)</span>':''}</label>`).join('');
+document.querySelectorAll('input[name="theme"]').forEach(r => r.addEventListener('change', () => {
+  const t = THEMES.find(x => x.id === r.value);
+  $('#live-demo').setAttribute('data-theme', r.value);
+  $('#live-label').textContent = 'live preview · ' + r.value;
+}));
+
+/* queue answers */
+function queue(form, build){
+  const payload = build(new FormData(form));
+  if (!payload) return;
+  if (window.lavish?.queuePrompt) window.lavish.queuePrompt(payload.text, { tag: payload.tag, text: payload.text, element: form, data: payload.data });
+}
+document.querySelectorAll('form[data-lavish-question]').forEach(form => form.addEventListener('submit', e => {
+  e.preventDefault();
+  const q = form.dataset.lavishQuestion;
+  if (q === 'theme') queue(form, d => ({ tag:'theme', text:`Theme: ship the ${d.get('theme')} theme`, data:{ question:'theme', answer:d.get('theme') } }));
+  if (q === 'darkmode'){
+    const v = d => d.get('darkmode');
+    queue(form, d => ({ tag:'darkmode', text:`Dark-mode strategy: ${v(d)}`, data:{ question:'darkmode', answer:v(d) } }));
+  }
+  if (q === 'notes'){
+    const v = (new FormData(form).get('notes') || '').trim();
+    if (v) queue(form, () => ({ tag:'notes', text:'Theme notes: ' + v, data:{ question:'notes', answer:v } }));
+  }
+}));
+
+/* fill the live demo dynamic bits */
+(function(){
+  const avs = avatarStackHTML();
+  const slot = $('#live-demo').querySelector('.card-body .ml-auto');
+  if (slot) slot.innerHTML = avs;
+  const ppl = $('#live-demo').querySelector('.flex.items-center.gap-3 .flex');
+  if (ppl) ppl.innerHTML = avs;
+})();
+</script>
+</body>
+</html>
