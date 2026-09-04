@@ -9,8 +9,9 @@ A time-blocking planner application for managing family daily routines. The app 
 Families juggle numerous recurring tasks across different time scales (daily, weekly, monthly) and often miss things in the process. This app provides a single source of truth for planned routines, eliminating the daily scramble and ensuring nothing falls through the cracks.
 
 ### Target Users
-- Two adults (primary users)
-- Shared calendar with per-person filtering capability
+- Two adults (primary users, Mom & Dad) who log in by name
+- Personas (e.g., children) exist as assignable/filterable entities but never log in
+- Shared calendar with per-person filtering capability, including personas
 
 ---
 
@@ -25,7 +26,7 @@ Each task has the following fields:
 | Name | string | Yes | Short descriptive name |
 | Duration | time (15-min increments) | Yes | Estimated time to complete |
 | Frequency | recurrence pattern | Yes | How often the task recurs (see Recurrence Patterns) |
-| Assignee | user reference | No | Who is responsible for this task |
+| Assignees | user list | No | One or more people (login users or personas) responsible for this task |
 | Notes | string | No | Optional additional context |
 | Category | string | No | For filtering in the task library |
 
@@ -51,12 +52,13 @@ Each task has the following fields:
 - **Recurring task placement**: Recurring tasks automatically populate based on frequency pattern
 
 **Conflict Detection**
-- Visual warning when two tasks overlap for the same assignee
+- Visual warning when two tasks overlap on the same day and **share at least one assignee**
 - Overlapping tasks are allowed (user decides how to resolve)
-- Conflict indicator remains visible until resolved
+- Multiple people on a task means the conflict applies to every shared person
+- Tasks with no assignees never conflict
 
 **Filtering**
-- Filter calendar view by assignee to see individual routines
+- Filter calendar view by person (login user or persona) to see individual routines
 - Clear visual distinction between tasks assigned to different people
 
 ### 2.3 Recurrence Patterns
@@ -119,7 +121,7 @@ Each task supports flexible recurrence configuration:
 1. Navigate to Task Library tab
 2. Click "Add Task"
 3. Enter name, duration, frequency, optional notes/category
-4. Optionally assign to a family member
+4. Optionally assign to one or more people (login users or personas)
 5. Task appears in the library ready to be scheduled
 
 ### 4.2 Planning a Routine (Weekly Planning Session)
@@ -135,7 +137,7 @@ Each task supports flexible recurrence configuration:
 
 ### 4.3 Viewing Individual Routines
 1. Navigate to Calendar tab
-2. Apply assignee filter (e.g., "Mom's Routine" or "Dad's Routine")
+2. Apply a person filter (e.g., "Mom's Routine", "Dad's Routine", or a child's routine)
 3. View only that person's scheduled tasks across daily/weekly/monthly views
 4. Verify no time conflicts for that individual
 
@@ -148,46 +150,22 @@ Each task supports flexible recurrence configuration:
 
 ---
 
-## 5. Data Model (Preliminary)
+## 5. Data Model
 
-### Entities
+The data model is finalized and documented in **`DATA_MODEL.md`** (authoritative source).
 
-**User**
-- id (primary key)
-- name
-- display_name
+### Entity Summary
 
-**Task**
-- id (primary key)
-- name
-- duration_minutes (integer, 15-min increments)
-- notes (optional)
-- category (optional)
-- user_id (foreign key, nullable - for assignee)
+| Entity | Purpose |
+|--------|---------|
+| users | Login users (Mom, Dad) and personas (e.g., children); `is_login_user` flag, optional `username` |
+| categories | Optional task grouping/color for library filtering and visual distinction |
+| tasks | Task definition: name, duration (15-min), notes, category |
+| task_assignees | Many-to-many: one or more people responsible for a task |
+| recurrence_rules | Per-task date generator (`weekly_days`, `interval_days`, `monthly_date`, `monthly_weekday`, `none`) |
+| scheduled_events | Materialized occurrences (date, start/end minutes); the planned routine |
 
-**RecurrenceRule**
-- id (primary key)
-- task_id (foreign key)
-- rule_type (enum: specific_days, interval, monthly_pattern)
-- specific_days (JSON: ["monday", "wednesday", "friday"])
-- interval_days (integer, for interval type)
-- monthly_pattern (JSON, for monthly type)
-- start_date
-- end_date (optional)
-
-**ScheduledTask**
-- id (primary key)
-- task_id (foreign key)
-- recurrence_rule_id (foreign key)
-- scheduled_date (date)
-- start_time (time)
-- end_time (time)
-- user_id (foreign key, for assignment override)
-
-**Category**
-- id (primary key)
-- name
-- color (optional, for visual distinction)
+Key semantics: occurrences inherit their task's assignees; time is stored as minutes from local midnight; display/generation is bounded to a 30-day window; conflicts are warnings computed from shared assignees.
 
 ---
 
@@ -207,7 +185,7 @@ Each task supports flexible recurrence configuration:
 
 ## 7. Deployment & Operational Decisions
 
-1. **Authentication**: Users enter a name to login. No accounts or passwords.
+1. **Authentication**: Users enter a name to login. No accounts or passwords. Personas are created in the user-management UI, never via login.
 2. **Conflict Resolution**: Last-write-wins for simultaneous edits.
 3. **Deployment**: Self-hosted on a Proxmox VM on the local network (handled outside this build).
 4. **Time Horizon**: Calendar displays up to 1 month (30 days) ahead.
