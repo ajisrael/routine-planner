@@ -4,7 +4,10 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-COPY package.json tsconfig.base.json ./
+# better-sqlite3 compiles from source when a prebuilt binary isn't available.
+RUN apk add --no-cache python3 make g++
+
+COPY package.json package-lock.json tsconfig.base.json ./
 COPY shared/package.json shared/
 COPY server/package.json server/
 COPY web/package.json web/
@@ -13,7 +16,17 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---------- Stage 2: runtime ----------
+# ---------- Stage 2: production-only deps (toolchain for native modules) ----------
+FROM node:22-alpine AS proddeps
+WORKDIR /app
+
+RUN apk add --no-cache python3 make g++
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY shared/package.json shared/
+COPY server/package.json server/
+RUN npm ci --omit=dev --workspace @planner/server --include-workspace-root
+
+# ---------- Stage 3: runtime (non-root, no build toolchain) ----------
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -21,14 +34,14 @@ ENV NODE_ENV=production \
     DATA_DIR=/data \
     STATIC_DIR=/app/web/dist
 
-# Production deps only (server + shared)
-COPY package.json ./
-COPY shared/package.json shared/
-COPY server/package.json server/
-RUN npm ci --omit=dev --workspace @planner/server --include-workspace-root
-
+COPY --from=proddeps /app/node_modules node_modules
+# @planner/shared is imported at runtime through its compiled dist; its
+# package.json must exist because node_modules/@planner/shared symlinks here.
+COPY shared/package.json shared/package.json
+COPY --from=build /app/shared/dist shared/dist
 COPY --from=build /app/server/dist server/dist
 COPY --from=build /app/web/dist web/dist
+COPY package.json ./
 
 RUN addgroup -S planner && adduser -S planner -G planner \
     && mkdir -p /data && chown planner:planner /data

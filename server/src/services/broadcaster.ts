@@ -1,30 +1,43 @@
+import { getIO } from "../realtime.js";
+
 /**
  * Broadcast helpers for the real-time delta channel (ARCHITECTURE.md §6.2).
- *
- * The realtime server is instantiated at boot and registered here so that
- * service layers can emit without importing the socket singleton directly.
+ * Collection names mirror the client store keys.
  */
+export type Collection =
+  | "users"
+  | "categories"
+  | "tasks"
+  | "assignees"
+  | "recurrenceRules"
+  | "events";
+
+export interface BatchChange {
+  type: "upsert" | "delete";
+  collection: Collection;
+  /** Entity id; task_assignees uses the composite "taskId:userId". */
+  id: number | string;
+  data?: unknown;
+}
+
 export interface Broadcaster {
-  /** Emit a single mutation to all connected clients. */
-  upsert(collection: string, id: number, data: unknown): void;
-  delete(collection: string, id: number): void;
+  upsert(collection: Collection, id: number | string, data: unknown): void;
+  delete(collection: Collection, id: number | string): void;
   /** Coalesce bulk changes (e.g. rule regeneration) into one emit. */
   emitBatch(changes: BatchChange[]): void;
 }
 
-export interface BatchChange {
-  type: "upsert" | "delete";
-  collection: string;
-  id: number;
-  data?: unknown;
-}
+export const broadcaster: Broadcaster = {
+  upsert(collection, id, data) {
+    if (data === undefined) return;
+    getIO()?.emit("entity:upsert", { collection, id, data });
+  },
+  delete(collection, id) {
+    getIO()?.emit("entity:delete", { collection, id });
+  },
+  emitBatch(changes) {
+    if (changes.length > 0) getIO()?.emit("entity:batch", { changes });
+  },
+};
 
-export function createBroadcaster(): Broadcaster {
-  // TODO: wire to the Socket.IO server; keep this interface stable so
-  // services can emit deltas once implemented.
-  return {
-    upsert() {},
-    delete() {},
-    emitBatch() {},
-  };
-}
+export const assigneeKey = (taskId: number, userId: number): string => `${taskId}:${userId}`;

@@ -1,19 +1,11 @@
+export { occurrenceDates } from "@planner/shared";
 import type { RecurrenceRule } from "@planner/shared";
 
 /**
- * Pure recurrence engine — implements DATA_MODEL.md §7.
- *
- * occurrenceDates returns the dates (local, ISO strings) on which a rule
- * recurs inside [windowStart, windowEnd), both inclusive.
+ * Server-side re-export of the pure occurrence-date engine so the documented
+ * `server/src/recurrence.ts` module exists (ARCHITECTURE.md §5.3). The engine
+ * lives in @planner/shared so the web preview can share the exact semantics.
  */
-export function occurrenceDates(
-  rule: Pick<RecurrenceRule, "ruleType" | "daysOfWeek" | "intervalDays" | "dayOfMonth" | "monthWeek" | "monthDow" | "startDate">,
-  windowStart: string,
-  windowEnd: string,
-): string[] {
-  void rule;
-  void windowStart;
-  void windowEnd;
-  // TODO: implement weekly_days / interval_days / monthly_date / monthly_weekday
-  throw new Error("recurrence engine not implemented yet");
+export function ruleIsRecurring(rule: Pick<RecurrenceRule, "ruleType"> | null | undefined): boolean {
+  return rule != null && rule.ruleType !== "none";
 }

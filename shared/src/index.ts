@@ -97,3 +97,8 @@ export const WINDOW_DAYS = 30;
 
 /** Snapped to the calendar's 15-minute granularity. */
 export const SLOT_MINUTES = 15;
+
+/** Default start time (09:00) when no reference time is recorded. */
+export const DEFAULT_START_MINUTE = 540;
+
+export * from "./recurrence.js";

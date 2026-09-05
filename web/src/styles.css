@@ -1,1 +1,303 @@
 @import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: pastel --default, pasteldusk;
+}
+
+/* ---------- dark theme: Pastel Dusk (custom DaisyUI v5 palette, DESIGN.md §3.5) ---------- */
+@plugin "daisyui/theme" {
+  name: "pasteldusk";
+  default: false;
+  prefersdark: false;
+  color-scheme: dark;
+  --color-base-100: #2b2b33;
+  --color-base-200: #24242b;
+  --color-base-300: #1d1d23;
+  --color-base-content: #eae8f2;
+  --color-primary: #b7a6ea;
+  --color-primary-content: #2b2b33;
+  --color-secondary: #93d6c6;
+  --color-secondary-content: #1f3a34;
+  --color-accent: #f4b6c5;
+  --color-accent-content: #43222c;
+  --color-neutral: #3d3d47;
+  --color-neutral-content: #eae8f2;
+  --color-info: #9cc7e8;
+  --color-info-content: #1e3346;
+  --color-success: #a3d4ae;
+  --color-success-content: #1e3a26;
+  --color-warning: #ecd3a0;
+  --color-warning-content: #443a1e;
+  --color-error: #e89da8;
+  --color-error-content: #44232a;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 1rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:where(.grid, .flex) > * {
+  min-width: 0;
+}
+
+:where(p, h1, h2, h3, h4, h5, h6, li, dd, blockquote, figcaption, td, th, .badge) {
+  overflow-wrap: anywhere;
+}
+
+:where(img, svg, video, canvas, iframe) {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------- calendar primitives (plain CSS on theme vars, DESIGN.md §3.4) ---------- */
+:root {
+  --hour-h: 60px;
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(148px, 1fr));
+}
+.plan-grid.single {
+  grid-template-columns: 56px minmax(0, 1fr);
+}
+
+.gutter-cell {
+  height: var(--hour-h);
+  border-top: 1px solid color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  padding: 2px 6px 0 0;
+  text-align: right;
+  font-size: 10px;
+  opacity: 0.55;
+}
+.gutter-spacer {
+  height: var(--hour-h);
+}
+
+.day-col {
+  position: relative;
+  border-left: 1px solid color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--hour-h) - 1px),
+    color-mix(in oklab, var(--color-base-content) 8%, transparent) calc(var(--hour-h) - 1px),
+    color-mix(in oklab, var(--color-base-content) 8%, transparent) var(--hour-h)
+  );
+}
+.day-col.col-today {
+  background-color: color-mix(in oklab, var(--color-primary) 4%, transparent);
+}
+.day-col.drag-over {
+  background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+
+.event-block {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 0.45rem;
+  padding: 3px 6px 4px;
+  overflow: hidden;
+  cursor: grab;
+  font-size: 11px;
+  line-height: 1.25;
+  user-select: none;
+  background: color-mix(in srgb, var(--ev-cat) 16%, var(--color-base-100));
+  border-left: 4px solid var(--ev-cat);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+.event-block:active {
+  cursor: grabbing;
+}
+.event-block.conflict {
+  box-shadow:
+    0 0 0 2px var(--color-error),
+    0 1px 3px rgba(0, 0, 0, 0.14);
+  z-index: 3;
+}
+.event-block.dragging {
+  opacity: 0.55;
+  z-index: 5;
+}
+.event-block.static {
+  cursor: default;
+}
+.event-block.compact {
+  padding: 1px 5px 2px;
+  font-size: 10px;
+}
+
+.ev-resize {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 9px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.ev-resize::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--color-base-content) 35%, transparent);
+}
+
+.conflict-dot {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  color: var(--color-error);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.drop-ghost {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border: 2px dashed var(--color-primary);
+  border-radius: 0.45rem;
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  pointer-events: none;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-error);
+  z-index: 4;
+  pointer-events: none;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-error);
+}
+
+.lib-row {
+  transition: background 0.12s;
+}
+.lib-row:hover {
+  background: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+.lib-row.armed {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  outline: 2px dashed var(--color-primary);
+}
+
+.month-pill {
+  display: block;
+  border-radius: 0.3rem;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 1.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--ev-cat) 18%, var(--color-base-100));
+  border-left: 3px solid var(--ev-cat);
+}
+.month-pill.conflict {
+  box-shadow: 0 0 0 1.5px var(--color-error);
+}
+.month-pill.out {
+  opacity: 0.45;
+}
+button.month-pill {
+  cursor: grab;
+  width: 100%;
+  text-align: left;
+}
+button.month-pill:active {
+  cursor: grabbing;
+}
+button.month-pill.pill-dragging {
+  opacity: 0.5;
+}
+
+.month-cell {
+  min-height: 96px;
+  border-top: 1px solid color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  border-left: 1px solid color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  padding: 2px 3px;
+  font-size: 10px;
+}
+.month-cell.cell-today {
+  background: color-mix(in oklab, var(--color-primary) 6%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--color-primary) 55%, transparent);
+  border-radius: 0.35rem;
+}
+.month-cell.drag-over {
+  background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+
+.avatar-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  flex: none;
+}
+.avatar-dot.stack {
+  margin-left: -6px;
+  box-shadow: 0 0 0 2px var(--color-base-100);
+}
+
+.assign-pick {
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  padding: 3px 10px 3px 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-base-200);
+}
+.assign-pick.on {
+  border-color: var(--ppl-color);
+  background: color-mix(in srgb, var(--ppl-color) 14%, var(--color-base-100));
+}
+
+.lib-scroll {
+  scrollbar-width: thin;
+}
+
+.menu-scroll {
+  scrollbar-width: thin;
+}
