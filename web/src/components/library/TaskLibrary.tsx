@@ -25,8 +25,8 @@ export function LibraryRail({
   const filtered = active.filter((t) => filter == null || t.categoryId === filter);
 
   return (
-    <aside className="card bg-base-100 border border-base-content/10 lg:sticky lg:top-[72px]">
-      <div className="card-body p-3 gap-2">
+    <aside className="card h-full min-h-0 flex-col bg-base-100 border border-base-content/10">
+      <div className="card-body flex min-h-0 flex-1 flex-col gap-2 p-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-sm">Task library</h3>
           <button className="btn btn-ghost btn-xs" onClick={onOpenLibrary}>
@@ -48,7 +48,7 @@ export function LibraryRail({
             />
           ))}
         </div>
-        <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto lib-scroll pr-1">
+        <div className="lib-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
           {filtered.length === 0 && (
             <p className="text-xs opacity-50 p-2">No tasks yet — add some in the Tasks tab.</p>
           )}

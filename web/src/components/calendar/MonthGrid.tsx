@@ -46,10 +46,10 @@ export function MonthGrid({
   }, [events]);
 
   return (
-    <div>
-      <div className="grid grid-cols-7 text-[10px] opacity-60 mb-1">
+    <div className="lib-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-base-content/10">
+      <div className="sticky top-0 z-10 mb-1 grid grid-cols-7 border-b border-base-content/10 bg-base-100">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d} className="px-2">
+          <div key={d} className="px-2 text-[10px] opacity-60">
             {d}
           </div>
         ))}

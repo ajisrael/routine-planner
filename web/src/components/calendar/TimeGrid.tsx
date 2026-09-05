@@ -6,7 +6,6 @@ import { usePlannerStore, categoryById } from "../../store";
 import { fmtTime, nowMinutes, shortDayLabel, todayISO } from "../../lib/dates";
 import { AvatarStack } from "../Avatar";
 import {
-  GRID_HEIGHT,
   START_HOUR,
   END_HOUR,
   HOUR_HEIGHT,
@@ -66,10 +65,18 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
     return () => window.clearInterval(t);
   }, []);
 
+  // The window is a full 24h, but events may legally end later (server
+  // clamps end_minute to 1440 = exactly midnight, already covered). The grid
+  // still sizes dynamically so blocks never overflow the scroll container.
+  const lastHour = Math.max(END_HOUR, ...events.map((e) => Math.ceil(e.endMinute / 60)));
+  const gridHeight = (lastHour - START_HOUR) * HOUR_HEIGHT;
+
   return (
-    <div className="overflow-x-auto">
+    // Fixed "window": the card constrains the height; this is the scroll
+    // container. Day headers stay pinned on top, hour labels pinned left.
+    <div className="lib-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-base-content/10">
       <div style={{ minWidth: single ? undefined : 900 }}>
-        <div className={`plan-grid${single ? " single" : ""}`}>
+        <div className={`plan-grid sticky top-0 z-20 bg-base-100${single ? " single" : ""}`}>
           <div className="gutter-spacer" />
           {dates.map((date) => {
             const { dow, date: num } = shortDayLabel(date);
@@ -77,7 +84,7 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
             return (
               <div
                 key={date}
-                className={`flex items-baseline gap-1 px-2 py-1 text-xs border-b border-base-content/10 ${
+                className={`flex items-baseline gap-1 border-b border-base-content/10 px-2 py-1 text-xs ${
                   isToday ? "font-bold text-primary" : "opacity-70"
                 }`}
               >
@@ -88,18 +95,38 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
             );
           })}
         </div>
-        <div className={`plan-grid${single ? " single" : ""}`} style={{ height: GRID_HEIGHT }}>
-          <div>
-            {Array.from({ length: END_HOUR - START_HOUR }, (_, i) => (
-              <div key={i} className="gutter-cell">
+        <div className={`plan-grid${single ? " single" : ""}`} style={{ height: gridHeight }}>
+          {/* Hour gutter: full-width grid item, pinned to the left edge while
+              the columns scroll under it (sticky within the scrollport). */}
+          <div
+            className="pointer-events-none sticky left-0 z-10"
+            style={{ gridRow: 1, gridColumn: "1 / -1", height: gridHeight }}
+          >
+            {Array.from({ length: lastHour - START_HOUR }, (_, i) => (
+              <div key={i} className="gutter-cell bg-base-100">
                 {String(START_HOUR + i).padStart(2, "0")}:00
               </div>
             ))}
+            {/* boundary label at the very bottom edge (e.g. "24:00") */}
+            <div
+              className="gutter-cell absolute left-0 right-0 bg-base-100"
+              style={{
+                top: gridHeight,
+                marginTop: -12,
+                height: 0,
+                border: "none",
+                padding: "0 6px 0 0",
+                overflow: "visible",
+              }}
+            >
+              {String(lastHour).padStart(2, "0")}:00
+            </div>
           </div>
-          {dates.map((date) => (
+          {dates.map((date, i) => (
             <DayColumn
               key={date}
               date={date}
+              column={i + 2}
               events={byDate.get(date) ?? []}
               conflicts={conflicts}
               interactive={interactive}
@@ -120,6 +147,7 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
 
 function DayColumn({
   date,
+  column,
   events,
   conflicts,
   interactive,
@@ -132,6 +160,7 @@ function DayColumn({
   armedTask,
 }: {
   date: string;
+  column: number;
   events: ScheduledEvent[];
   conflicts: Map<number, number[]>;
   interactive: boolean;
@@ -161,6 +190,7 @@ function DayColumn({
     <div
       ref={setNodeRef}
       className={`day-col ${date === todayISO() ? "col-today" : ""} ${isOver ? "drag-over" : ""}`}
+      style={{ gridRow: 1, gridColumn: column }}
       onClick={clickSlot}
       role={armed ? "button" : undefined}
       aria-label={armed ? `Place ${armedTask.name} on ${date}` : undefined}

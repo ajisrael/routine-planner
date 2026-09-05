@@ -59,9 +59,9 @@ export default function ViewTab(): React.JSX.Element {
   const emptyInRange = visibleEvents.filter((e) => rangeDates.includes(e.eventDate)).length === 0;
 
   return (
-    <section>
-      <div className="card bg-base-100 border border-base-content/10">
-        <div className="card-body p-3 lg:p-4 gap-3">
+    <section className="h-full min-h-0">
+      <div className="card flex h-full min-h-0 flex-col overflow-hidden bg-base-100 border border-base-content/10">
+        <div className="card-body flex min-h-0 flex-1 flex-col gap-3 p-3 lg:p-4">
           <div className="flex flex-wrap items-center gap-2 justify-between">
             <div className="flex items-center gap-2 flex-wrap">
               <div role="tablist" className="join">

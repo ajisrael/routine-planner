@@ -69,9 +69,12 @@ export default function App(): React.JSX.Element {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-base-200">
+    // Fixed-height shell: the navbar and main split the viewport; each tab
+    // decides how its own space scrolls. Plan/View fill main exactly (their
+    // cards are the "window"), Tasks scrolls naturally.
+    <div className="flex h-dvh flex-col overflow-hidden bg-base-200">
       <Navbar tab={tab} onTab={setTab} onManagePeople={() => setPeopleOpen(true)} />
-      <main className="flex-1 w-full max-w-[1500px] mx-auto p-3 lg:p-5">
+      <main className="flex min-h-0 w-full max-w-[1500px] flex-1 flex-col overflow-y-auto mx-auto p-3 lg:p-5">
         {tab === "tasks" ? <TasksView /> : tab === "plan" ? <PlanView onOpenLibrary={() => setTab("tasks")} /> : <ViewTab />}
       </main>
       {peopleOpen && <UserManager onClose={() => setPeopleOpen(false)} />}

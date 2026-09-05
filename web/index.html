@@ -1,14 +1,15 @@
 <!doctype html>
-<html lang="en" data-theme="pastel">
+<html lang="en" data-theme="pasteldusk">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Routine Planner</title>
     <script>
       // Apply the saved theme before first paint to avoid a flash.
+      // Default is Pastel Dusk (dark); an explicit "pastel" choice wins.
       try {
         var t = localStorage.getItem("rp-theme");
-        if (t === "pasteldusk" || t === "pastel") document.documentElement.setAttribute("data-theme", t);
+        document.documentElement.setAttribute("data-theme", t === "pastel" ? "pastel" : "pasteldusk");
       } catch (e) {}
     </script>
   </head>

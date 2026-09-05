@@ -1,12 +1,10 @@
 import type { ScheduledEvent } from "@planner/shared";
 
-/** Calendar metrics (DESIGN.md §3.4). */
+/** Calendar metrics (DESIGN.md §3.4, extended to a full 24-hour window). */
 export const HOUR_HEIGHT = 60;
-export const START_HOUR = 6;
-export const END_HOUR = 22;
+export const START_HOUR = 0;
+export const END_HOUR = 24;
 export const GUTTER_WIDTH = 56;
-export const VISIBLE_MINUTES = (END_HOUR - START_HOUR) * 60;
-export const GRID_HEIGHT = VISIBLE_MINUTES * HOUR_HEIGHT;
 export const SLOT = 15;
 
 /** Minutes from local midnight → y offset inside the grid. */
@@ -14,11 +12,11 @@ export function minuteToY(minute: number): number {
   return ((minute - START_HOUR * 60) / 60) * HOUR_HEIGHT;
 }
 
-/** y offset inside the grid → snapped start minute (§6.3). */
+/** y offset inside the grid → snapped start minute (§6.3). Last slot is 23:45. */
 export function yToMinute(y: number): number {
   const m = (y / HOUR_HEIGHT) * 60 + START_HOUR * 60;
   const snapped = Math.round(m / SLOT) * SLOT;
-  return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, snapped));
+  return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - SLOT, snapped));
 }
 
 export interface Packed {

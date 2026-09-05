@@ -14,7 +14,7 @@ export function applyTheme(theme: ThemeName): void {
 
 export function currentTheme(): ThemeName {
   const attr = document.documentElement.getAttribute("data-theme");
-  return attr === "pasteldusk" ? "pasteldusk" : "pastel";
+  return attr === "pastel" ? "pastel" : "pasteldusk";
 }
 
 /** Theme toggle state (Pastel ↔ Pastel Dusk, DESIGN.md §2). */

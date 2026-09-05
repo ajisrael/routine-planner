@@ -186,7 +186,9 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
   const formTask = formTaskId != null ? store.tasks.find((t) => t.id === formTaskId) ?? null : null;
 
   return (
-    <section className="grid lg:grid-cols-[300px_1fr] gap-4 items-start">
+    // Fills main exactly (the shell root is a fixed-height flex column);
+    // the calendar card is the window, the grid scrolls inside it.
+    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
       <DndContext
         sensors={[sensor]}
         collisionDetection={pointerWithin}
@@ -197,8 +199,8 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
       >
         <LibraryRail armedTaskId={armedTaskId} onArm={setArmedTaskId} onOpenLibrary={onOpenLibrary} />
 
-        <div className="card bg-base-100 border border-base-content/10 overflow-hidden">
-          <div className="card-body p-3 lg:p-4 gap-3">
+        <div className="card flex h-full min-h-0 flex-col overflow-hidden bg-base-100 border border-base-content/10">
+          <div className="card-body flex min-h-0 flex-1 flex-col gap-3 p-3 lg:p-4">
             <div className="flex flex-wrap items-center gap-2 justify-between">
               <div className="flex items-center gap-1">
                 <button

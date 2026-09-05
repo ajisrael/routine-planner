@@ -44,7 +44,7 @@ export function Navbar({
   const syncLabel = connected ? (syncPulse > 0 ? "Live · synced just now" : "Live") : "Reconnecting…";
 
   return (
-    <div className="navbar sticky top-0 z-40 bg-base-100 border-b border-base-content/10 px-2 lg:px-4">
+    <div className="navbar z-40 shrink-0 bg-base-100 border-b border-base-content/10 px-2 lg:px-4">
       <div className="navbar-start gap-1">
         <div className="w-8 h-8 rounded-lg bg-primary text-primary-content grid place-items-center text-sm shrink-0">
           🗓️

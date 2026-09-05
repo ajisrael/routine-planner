@@ -46,6 +46,12 @@
   box-sizing: border-box;
 }
 
+/* daisyUI v5 grows <p> inside card bodies (.card-body p { flex-grow: 1 });
+   our layouts size content explicitly, so paragraphs must keep natural height. */
+.card-body p {
+  flex-grow: 0;
+}
+
 :where(.grid, .flex) > * {
   min-width: 0;
 }
