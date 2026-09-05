@@ -337,7 +337,7 @@ From `REQUIREMENTS.md §3`:
 ## 11. File Layout
 
 ```
-schedule-planner/
+routine-planner/
 ├── REQUIREMENTS.md
 ├── DATA_MODEL.md
 ├── ARCHITECTURE.md
