@@ -120,15 +120,42 @@ describe("task + recurrence + events lifecycle", () => {
     expect(body.events[29]!.eventDate).toBe("30");
   });
 
-  it("dragging a recurring task into a slot adds one occurrence", async () => {
+  it("dropping a recurring task re-anchors every occurrence to the drop time", async () => {
     const snap = (await call("GET", "/api/snapshot")).json as {
-      events: Array<{ id: number; eventDate: string }>;
+      events: Array<{ id: number; eventDate: string; startMinute: number }>;
     };
-    const before = snap.events.length;
-    const ok = await call("POST", "/api/events", { taskId, eventDate: snap.events[0]!.eventDate, startMinute: 60 });
+    // daily task currently generated at 09:00 — drop on Day 1 at 15:00
+    const ok = await call("POST", "/api/events", { taskId, eventDate: "01", startMinute: 900, endMinute: 945 });
     expect(ok.status).toBe(201);
-    const after = ((await call("GET", "/api/snapshot")).json as { events: unknown[] }).events.length;
-    expect(after).toBe(before + 1);
+    const after = ((await call("GET", "/api/snapshot")).json as { events: Array<{ startMinute: number }> }).events;
+    expect(after.length).toBe(30); // regeneration covers the dropped day — no duplicate
+    expect(after.every((e) => e.startMinute === 900)).toBe(true);
+  });
+
+  it("dropping at the same time on an occupied day is rejected with 409", async () => {
+    const res = await call("POST", "/api/events", { taskId, eventDate: "02", startMinute: 900, endMinute: 945 });
+    expect(res.status).toBe(409);
+  });
+
+  it("a weekly task accepts a detached extra on a non-rule day", async () => {
+    const created = await call("POST", "/api/tasks", {
+      name: "Weekly thing",
+      durationMinutes: 30,
+      recurrence: { ruleType: "weekly_days", daysOfWeek: [1, 3, 5], refStartMinute: 600 },
+    });
+    const weeklyId = (created.json as { task: { id: number } }).task.id;
+    // days 01/03/05 generated at 10:00 — drop on Day 2 at the same time
+    const ok = await call("POST", "/api/events", { taskId: weeklyId, eventDate: "02", startMinute: 600, endMinute: 630 });
+    expect(ok.status).toBe(201);
+    const snap = (await call("GET", "/api/snapshot")).json as {
+      events: Array<{ taskId: number; eventDate: string; startMinute: number; ruleId: number | null }>;
+    };
+    const mine = snap.events.filter((e) => e.taskId === weeklyId);
+    expect(mine).toHaveLength(14); // 13 rule days (Mon/Wed/Fri × 4 + Mon 29) + detached Day 2
+    const extra = mine.find((e) => e.eventDate === "02")!;
+    expect(extra.ruleId).toBeNull(); // detached — survives regeneration
+    // clean up so later assertions see only the daily task's events
+    await call("DELETE", `/api/tasks/${weeklyId}/events`);
   });
 
   it("rejects real dates and days outside the template", async () => {
@@ -139,18 +166,18 @@ describe("task + recurrence + events lifecycle", () => {
 
   it("duplicate (task, date, start) is rejected with 409", async () => {
     const snap = (await call("GET", "/api/snapshot")).json as {
-      events: Array<{ eventDate: string; startMinute: number }>;
+      events: Array<{ taskId: number; eventDate: string; startMinute: number }>;
     };
-    const e = snap.events[0]!;
+    const e = snap.events.find((ev) => ev.taskId === taskId)!;
     const res = await call("POST", "/api/events", { taskId, eventDate: e.eventDate, startMinute: e.startMinute });
     expect(res.status).toBe(409);
   });
 
   it("moves an occurrence (instance-first) and syncs to all", async () => {
     const snap = (await call("GET", "/api/snapshot")).json as {
-      events: Array<{ id: number; startMinute: number }>;
+      events: Array<{ id: number; startMinute: number; taskId: number }>;
     };
-    const anchor = snap.events.find((e) => e.startMinute === 960)!;
+    const anchor = snap.events.find((e) => e.startMinute === 900 && e.taskId === taskId)!;
     const moved = await call("PUT", `/api/events/${anchor.id}`, { startMinute: 1020, endMinute: 1065 });
     expect(moved.status).toBe(200);
     expect((moved.json as { startMinute: number }).startMinute).toBe(1020);
