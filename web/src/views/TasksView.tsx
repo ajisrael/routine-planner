@@ -5,6 +5,7 @@ import { usePlannerStore, assigneesOfTask, ruleForTask, categoryById, eventsOfTa
 import { AvatarStack } from "../components/Avatar";
 import { CategoryDot } from "../components/Chips";
 import { TaskForm } from "../components/taskForm/TaskForm";
+import { CategoryManager } from "../components/CategoryManager";
 import { occurrencesThisWeek } from "../components/library/TaskLibrary";
 import { toast } from "../store/toasts";
 
@@ -15,6 +16,7 @@ export default function TasksView(): React.JSX.Element {
   const [filter, setFilter] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [managerOpen, setManagerOpen] = useState(false);
 
   const active = useMemo(() => tasks.filter((t) => t.active), [tasks]);
   const visible = active.filter((t) => filter == null || t.categoryId === filter);
@@ -29,15 +31,20 @@ export default function TasksView(): React.JSX.Element {
             from the <b>Plan</b> tab.
           </p>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-        >
-          ➕ Add task
-        </button>
+        <div className="flex gap-2">
+          <button className="btn btn-ghost" onClick={() => setManagerOpen(true)}>
+            🏷️ Manage categories
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            ➕ Add task
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -101,6 +108,7 @@ export default function TasksView(): React.JSX.Element {
       )}
 
       <TaskForm open={formOpen} task={editing} onClose={() => setFormOpen(false)} />
+      {managerOpen && <CategoryManager onClose={() => setManagerOpen(false)} />}
     </section>
   );
 }

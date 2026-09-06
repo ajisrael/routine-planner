@@ -21,3 +21,21 @@ export const personColor = (userId: number): string =>
 
 export const initial = (name: string): string =>
   (name.trim()[0] ?? "?").toUpperCase();
+
+/** Palette for auto-assigned category colors (skips colors already in use). */
+const CATEGORY_PALETTE = [
+  "#22d3ee",
+  "#e879f9",
+  "#fb923c",
+  "#4ade80",
+  "#facc15",
+  "#38bdf8",
+  "#c084fc",
+  "#2dd4bf",
+];
+
+export function nextFreeCategoryColor(used: Iterable<string>): string {
+  const usedSet = new Set(used);
+  for (const c of CATEGORY_PALETTE) if (!usedSet.has(c)) return c;
+  return CATEGORY_PALETTE[usedSet.size % CATEGORY_PALETTE.length];
+}
