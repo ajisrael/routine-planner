@@ -55,10 +55,10 @@ describe("health + snapshot", () => {
     expect(json).toMatchObject({ ok: true });
   });
 
-  it("GET /api/snapshot returns seeded collections", async () => {
+  it("GET /api/snapshot returns an empty fresh install (no pre-seeded data)", async () => {
     const snap = (await call("GET", "/api/snapshot")).json as Record<string, unknown[]>;
-    expect(snap.users!.length).toBeGreaterThanOrEqual(2);
-    expect(snap.categories!.length).toBeGreaterThanOrEqual(5);
+    expect(snap.users).toEqual([]);
+    expect(snap.categories).toEqual([]);
     expect(snap.tasks).toEqual([]);
   });
 });
@@ -91,12 +91,19 @@ describe("auth (name-based login)", () => {
 
 describe("task + recurrence + events lifecycle", () => {
   let taskId = 0;
+  let personId = 0;
+
+  it("creates a persona for assignment tests", async () => {
+    const res = await call("POST", "/api/users", { displayName: "TestKid" });
+    expect(res.status).toBe(201);
+    personId = (res.json as { id: number }).id;
+  });
 
   it("creates a daily task with reference time 16:00 → generates 30 occurrences", async () => {
     const res = await call("POST", "/api/tasks", {
       name: "Homework",
       durationMinutes: 45,
-      assigneeIds: [1],
+      assigneeIds: [personId],
       recurrence: { ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7], refStartMinute: 960 },
     });
     expect(res.status).toBe(201);
@@ -143,7 +150,7 @@ describe("task + recurrence + events lifecycle", () => {
   });
 
   it("person filter on GET /api/events", async () => {
-    const res = await call("GET", "/api/events?person=1");
+    const res = await call("GET", `/api/events?person=${personId}`);
     expect((res.json as unknown[]).length).toBeGreaterThan(0);
     const none = await call("GET", "/api/events?person=999");
     expect((none.json as unknown[]).length).toBe(0);
