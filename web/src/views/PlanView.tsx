@@ -2,37 +2,36 @@ import { useMemo, useState } from "react";
 import { DndContext, PointerSensor, pointerWithin, useSensor } from "@dnd-kit/core";
 import type { DragEndEvent, DragMoveEvent, DragStartEvent } from "@dnd-kit/core";
 import type { ScheduledEvent } from "@planner/shared";
+import { TEMPLATE_DAYS, templateDay } from "@planner/shared";
 import { LibraryRail } from "../components/library/TaskLibrary";
 import { TimeGrid, type Ghost } from "../components/calendar/TimeGrid";
 import { MonthGrid } from "../components/calendar/MonthGrid";
 import { PersonFilterChips, ConflictBadge } from "../components/Chips";
 import { TaskForm } from "../components/taskForm/TaskForm";
 import { ContextMenu, type ContextMenuState } from "../components/calendar/ContextMenu";
-import { usePlannerStore, referenceStartMinute, conflictToastIfAny, windowStart, windowEnd } from "../store";
+import { usePlannerStore, referenceStartMinute, conflictToastIfAny } from "../store";
 import { filterEventsByPerson, computeConflicts } from "../selectors/conflicts";
 import {
-  addDaysISO,
-  addMonthsISO,
-  clampISO,
-  dayLabel,
+  dayDowLabel,
+  dayNumber,
   fmtTime,
-  monthCells,
-  monthLabel,
-  todayISO,
-  weekDates,
-  weekRangeLabel,
+  allTemplateDays,
+  weekDays,
+  weekLabel,
+  weekOf,
 } from "../lib/dates";
 import { yToMinute as yToMinuteOf } from "../components/calendar/geometry";
 import { toast } from "../store/toasts";
 
 type PlanMode = "day" | "week" | "month";
 
-/** Plan tab: library rail + interactive calendar (DESIGN.md §5.3). */
+/** Plan tab: library rail + interactive template calendar (DESIGN.md §5.3). */
 export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void }): React.JSX.Element {
   const store = usePlannerStore();
   const users = store.users;
   const [mode, setMode] = useState<PlanMode>("week");
-  const [anchor, setAnchor] = useState(todayISO());
+  const [selDay, setSelDay] = useState(1); // day mode selection (1..30)
+  const [selWeek, setSelWeek] = useState(1); // week mode selection (1..5)
   const [person, setPerson] = useState<number | null>(null);
   const [armedTaskId, setArmedTaskId] = useState<number | null>(null);
   const [ghost, setGhost] = useState<Ghost | null>(null);
@@ -40,19 +39,13 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
   const [formOccurrence, setFormOccurrence] = useState<ScheduledEvent | null>(null);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
 
-  const wStart = windowStart();
-  const wEnd = windowEnd();
-  const anchorSafe = clampISO(anchor, wStart, wEnd);
+  const allDays = useMemo(allTemplateDays, []);
 
-  const dates = useMemo(
-    () =>
-      mode === "day"
-        ? [anchorSafe]
-        : mode === "week"
-          ? weekDates(anchorSafe)
-          : monthCells(anchorSafe).map((c) => c.date),
-    [mode, anchorSafe],
-  );
+  const selectedDays = useMemo((): string[] => {
+    if (mode === "day") return [templateDay(selDay)];
+    if (mode === "week") return weekDays(selWeek);
+    return allDays;
+  }, [mode, selDay, selWeek, allDays]);
 
   const visibleEvents = useMemo(
     () => filterEventsByPerson(store.events, person, store.assignees, store.tasks),
@@ -65,27 +58,22 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
   );
 
   const conflictCount = useMemo(
-    () => visibleEvents.filter((e) => dates.includes(e.eventDate) && conflicts.has(e.id)).length,
-    [visibleEvents, dates, conflicts],
+    () => visibleEvents.filter((e) => selectedDays.includes(e.eventDate) && conflicts.has(e.id)).length,
+    [visibleEvents, selectedDays, conflicts],
   );
 
   const armedTask = armedTaskId != null ? store.tasks.find((t) => t.id === armedTaskId) ?? null : null;
 
-  const moveAnchor = (dir: -1 | 1): void => {
-    const step = mode === "day" ? 1 : mode === "week" ? 7 : 0;
-    const next =
-      mode === "month"
-        ? addMonthsISO(anchorSafe, dir)
-        : addDaysISO(anchorSafe, step * dir);
-    setAnchor(clampISO(next, wStart, wEnd));
-  };
+  const stepDay = (dir: -1 | 1): void =>
+    setSelDay((d) => Math.min(TEMPLATE_DAYS, Math.max(1, d + dir)));
+  const stepWeek = (dir: -1 | 1): void => setSelWeek((w) => Math.min(5, Math.max(1, w + dir)));
 
   const rangeTitle =
     mode === "day"
-      ? dayLabel(anchorSafe)
+      ? `Day ${selDay} · ${dayDowLabel(templateDay(selDay))}`
       : mode === "week"
-        ? weekRangeLabel(weekDates(anchorSafe)[0]!, weekDates(anchorSafe)[6]!)
-        : monthLabel(anchorSafe);
+        ? weekLabel(selWeek)
+        : "Routine template · 30 days";
 
   // ---- dnd -------------------------------------------------------------
   const sensor = useSensor(PointerSensor, { activationConstraint: { distance: 6 } });
@@ -121,7 +109,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
     if (!overData) return;
 
     if (active.type === "library-task") {
-      void scheduleTask(active.taskId!, overData.type, overData.date, g?.startMinute ?? null);
+      void scheduleTask(active.taskId!, overData.date, g?.startMinute ?? null);
     } else if (active.type === "event") {
       const ev = store.events.find((e) => e.id === active.eventId);
       if (!ev) return;
@@ -139,21 +127,15 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
 
   const onDragStart = (_event: DragStartEvent): void => setArmedTaskId(null);
 
-  const scheduleTask = async (
-    taskId: number,
-    targetType: string,
-    date: string,
-    startMinute: number | null,
-  ): Promise<void> => {
+  const scheduleTask = async (taskId: number, date: string, startMinute: number | null): Promise<void> => {
     const task = store.tasks.find((t) => t.id === taskId);
     if (!task) return;
     const start = startMinute ?? referenceStartMinute(taskId);
     const ev = await store.createEvent({ taskId, eventDate: date, startMinute: start });
     if (ev) {
-      toast.success(`Scheduled “${task.name}” · ${fmtTime(start)}`);
+      toast.success(`Scheduled “${task.name}” · Day ${dayNumber(date)} ${fmtTime(start)}`);
       conflictToastIfAny(ev);
     }
-    void targetType;
   };
 
   const moveAndToast = async (
@@ -164,7 +146,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
     const updated = await store.moveEvent(ev.id, patch);
     if (updated) {
       toast.success(
-        `${label} · ${updated.eventDate === ev.eventDate ? fmtTime(updated.startMinute) : updated.eventDate}`,
+        `${label} · ${updated.eventDate === ev.eventDate ? fmtTime(updated.startMinute) : `Day ${dayNumber(updated.eventDate)}`}`,
       );
       conflictToastIfAny(updated);
     }
@@ -175,7 +157,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
     if (armedTaskId == null) return;
     const taskId = armedTaskId;
     setArmedTaskId(null);
-    await scheduleTask(taskId, "slot", date, startMinute);
+    await scheduleTask(taskId, date, startMinute);
   };
 
   const openOccurrenceForm = (ev: ScheduledEvent): void => {
@@ -203,25 +185,46 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
           <div className="card-body flex min-h-0 flex-1 flex-col gap-3 p-3 lg:p-4">
             <div className="flex flex-wrap items-center gap-2 justify-between">
               <div className="flex items-center gap-1">
-                <button
-                  className="btn btn-ghost btn-sm btn-square"
-                  onClick={() => moveAnchor(-1)}
-                  disabled={mode !== "month" && anchorSafe <= wStart}
-                  aria-label="Previous"
-                >
-                  ‹
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setAnchor(todayISO())}>
-                  Today
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm btn-square"
-                  onClick={() => moveAnchor(1)}
-                  disabled={mode !== "month" && anchorSafe >= wEnd}
-                  aria-label="Next"
-                >
-                  ›
-                </button>
+                {mode === "day" && (
+                  <>
+                    <button
+                      className="btn btn-ghost btn-sm btn-square"
+                      onClick={() => stepDay(-1)}
+                      disabled={selDay <= 1}
+                      aria-label="Previous day"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm btn-square"
+                      onClick={() => stepDay(1)}
+                      disabled={selDay >= TEMPLATE_DAYS}
+                      aria-label="Next day"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+                {mode === "week" && (
+                  <>
+                    <button
+                      className="btn btn-ghost btn-sm btn-square"
+                      onClick={() => stepWeek(-1)}
+                      disabled={selWeek <= 1}
+                      aria-label="Previous week"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm btn-square"
+                      onClick={() => stepWeek(1)}
+                      disabled={selWeek >= 5}
+                      aria-label="Next week"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
                 <h3 className="font-bold ml-2 text-sm lg:text-base">{rangeTitle}</h3>
               </div>
               <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -244,7 +247,6 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
 
             {mode === "month" ? (
               <MonthGrid
-                anchor={anchorSafe}
                 events={visibleEvents}
                 conflicts={conflicts}
                 interactive
@@ -252,14 +254,14 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
                 onEventClick={openOccurrenceForm}
                 onDayClick={(date) => {
                   setMode("day");
-                  setAnchor(date);
+                  setSelDay(dayNumber(date));
                 }}
                 onSlotClick={(date) => void placeArmed(date, null)}
                 onEventContextMenu={(ev, e) => setMenu({ event: ev, x: e.clientX, y: e.clientY })}
               />
             ) : (
               <TimeGrid
-                dates={dates}
+                dates={selectedDays}
                 events={visibleEvents}
                 conflicts={conflicts}
                 interactive
@@ -278,7 +280,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
             <p className="text-[11px] opacity-50">
               Drag events to move · drag the bottom edge to resize (15-min snap) · right-click an event for
               sync/delete actions · overlapping tasks that <b>share a person</b> get a red warning — overlaps
-              are allowed, you decide.
+              are allowed, you decide. Week {weekOf("29")} holds only Days 29–30.
             </p>
           </div>
         </div>
@@ -311,7 +313,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
         onDeleteAll={async (ev) => {
           const task = store.tasks.find((t) => t.id === ev.taskId);
           if (!task) return;
-          if (!window.confirm(`Delete every occurrence of “${task.name}” in the 30-day window?`)) return;
+          if (!window.confirm(`Delete every occurrence of “${task.name}” in the template?`)) return;
           await store.deleteTaskEvents(task.id);
           toast.info("All occurrences removed");
           setMenu(null);

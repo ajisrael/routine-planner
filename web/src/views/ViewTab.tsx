@@ -2,37 +2,27 @@ import { useMemo, useState } from "react";
 import { TimeGrid } from "../components/calendar/TimeGrid";
 import { MonthGrid } from "../components/calendar/MonthGrid";
 import { PersonFilterChips } from "../components/Chips";
-import { usePlannerStore, windowStart, windowEnd } from "../store";
+import { usePlannerStore } from "../store";
 import { computeConflicts, filterEventsByPerson } from "../selectors/conflicts";
-import {
-  addDaysISO,
-  addMonthsISO,
-  clampISO,
-  dayLabel,
-  monthCells,
-  monthLabel,
-  todayISO,
-  weekDates,
-  weekRangeLabel,
-} from "../lib/dates";
+import { dayDowLabel, dayNumber, allTemplateDays, templateDay, weekDays, weekLabel } from "../lib/dates";
 
 type ViewMode = "day" | "week" | "month";
 
-/** View tab: read-only schedule with person filter + legend (DESIGN.md §5.4). */
+/** View tab: read-only routine template with person filter + legend (DESIGN.md §5.4). */
 export default function ViewTab(): React.JSX.Element {
   const store = usePlannerStore();
   const [mode, setMode] = useState<ViewMode>("week");
-  const [anchor, setAnchor] = useState(todayISO());
+  const [selDay, setSelDay] = useState(1);
+  const [selWeek, setSelWeek] = useState(1);
   const [person, setPerson] = useState<number | null>(null);
 
-  const wStart = windowStart();
-  const wEnd = windowEnd();
-  const anchorSafe = clampISO(anchor, wStart, wEnd);
+  const allDays = useMemo(allTemplateDays, []);
 
-  const rangeDates = useMemo(
-    () => (mode === "day" ? [anchorSafe] : mode === "week" ? weekDates(anchorSafe) : monthCells(anchorSafe).map((c) => c.date)),
-    [mode, anchorSafe],
-  );
+  const rangeDates = useMemo((): string[] => {
+    if (mode === "day") return [templateDay(selDay)];
+    if (mode === "week") return weekDays(selWeek);
+    return allDays;
+  }, [mode, selDay, selWeek, allDays]);
 
   const visibleEvents = useMemo(
     () => filterEventsByPerson(store.events, person, store.assignees, store.tasks),
@@ -43,18 +33,15 @@ export default function ViewTab(): React.JSX.Element {
     [visibleEvents, store.tasks, store.assignees],
   );
 
-  const moveAnchor = (dir: -1 | 1): void => {
-    const step = mode === "day" ? 1 : mode === "week" ? 7 : 0;
-    const next = mode === "month" ? addMonthsISO(anchorSafe, dir) : addDaysISO(anchorSafe, step * dir);
-    setAnchor(clampISO(next, wStart, wEnd));
-  };
+  const stepDay = (dir: -1 | 1): void => setSelDay((d) => Math.min(30, Math.max(1, d + dir)));
+  const stepWeek = (dir: -1 | 1): void => setSelWeek((w) => Math.min(5, Math.max(1, w + dir)));
 
   const rangeTitle =
     mode === "day"
-      ? dayLabel(anchorSafe)
+      ? `Day ${selDay} · ${dayDowLabel(templateDay(selDay))}`
       : mode === "week"
-        ? weekRangeLabel(weekDates(anchorSafe)[0]!, weekDates(anchorSafe)[6]!)
-        : monthLabel(anchorSafe);
+        ? weekLabel(selWeek)
+        : "Routine template · 30 days";
 
   const emptyInRange = visibleEvents.filter((e) => rangeDates.includes(e.eventDate)).length === 0;
 
@@ -76,27 +63,46 @@ export default function ViewTab(): React.JSX.Element {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-1 ml-1">
-                <button
-                  className="btn btn-ghost btn-sm btn-square"
-                  onClick={() => moveAnchor(-1)}
-                  disabled={mode !== "month" && anchorSafe <= wStart}
-                  aria-label="Previous"
-                >
-                  ‹
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setAnchor(todayISO())}>
-                  Today
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm btn-square"
-                  onClick={() => moveAnchor(1)}
-                  disabled={mode !== "month" && anchorSafe >= wEnd}
-                  aria-label="Next"
-                >
-                  ›
-                </button>
-              </div>
+              {mode === "day" && (
+                <div className="flex items-center gap-1 ml-1">
+                  <button
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => stepDay(-1)}
+                    disabled={selDay <= 1}
+                    aria-label="Previous day"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => stepDay(1)}
+                    disabled={selDay >= 30}
+                    aria-label="Next day"
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
+              {mode === "week" && (
+                <div className="flex items-center gap-1 ml-1">
+                  <button
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => stepWeek(-1)}
+                    disabled={selWeek <= 1}
+                    aria-label="Previous week"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm btn-square"
+                    onClick={() => stepWeek(1)}
+                    disabled={selWeek >= 5}
+                    aria-label="Next week"
+                  >
+                    ›
+                  </button>
+                </div>
+              )}
               <h3 className="font-bold text-sm lg:text-base ml-1">{rangeTitle}</h3>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -106,46 +112,47 @@ export default function ViewTab(): React.JSX.Element {
           </div>
 
           {/* category legend */}
-          <div className="flex flex-wrap gap-3 text-[11px] opacity-80">
-            {store.categories.map((c) => (
-              <span key={c.id} className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: c.color ?? "var(--color-base-content)" }} />
-                {c.name}
-              </span>
-            ))}
-          </div>
+          {store.categories.length > 0 && (
+            <div className="flex flex-wrap gap-3 text-[11px] opacity-80">
+              {store.categories.map((c) => (
+                <span key={c.id} className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full"
+                    style={{ background: c.color ?? "var(--color-base-content)" }}
+                  />
+                  {c.name}
+                </span>
+              ))}
+            </div>
+          )}
 
           {emptyInRange && (
             <div className="alert alert-info text-sm">
               <span>
-                Nothing scheduled for {person != null ? `${store.users.find((u) => u.id === person)?.displayName}'s` : "this"}{" "}
-                view in this range — enjoy the quiet, or add something from the <b>Plan</b> tab.
+                Nothing scheduled for{" "}
+                {person != null ? `${store.users.find((u) => u.id === person)?.displayName}'s` : "this"} view in the
+                template — enjoy the quiet, or add something from the <b>Plan</b> tab.
               </span>
             </div>
           )}
 
           {mode === "month" ? (
             <MonthGrid
-              anchor={anchorSafe}
               events={visibleEvents}
               conflicts={conflicts}
               interactive={false}
               onDayClick={(date) => {
                 setMode("day");
-                setAnchor(date);
+                setSelDay(dayNumber(date));
               }}
             />
           ) : (
-            <TimeGrid
-              dates={rangeDates}
-              events={visibleEvents}
-              conflicts={conflicts}
-              interactive={false}
-            />
+            <TimeGrid dates={rangeDates} events={visibleEvents} conflicts={conflicts} interactive={false} />
           )}
 
           <p className="text-[11px] opacity-50">
-            Read-only preview. Conflicts show as red rings — they're warnings only. Use <b>Plan</b> to edit.
+            Read-only preview of the repeating template. Conflicts show as red rings — they're warnings only.
+            Use <b>Plan</b> to edit.
           </p>
         </div>
       </div>
