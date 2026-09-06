@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en" data-theme="pasteldusk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Category Management — Design Review</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/daisyui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/themes.css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.4/dist/index.global.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :where(.grid, .flex) > * { min-width: 0; }
+  :where(p, h1, h2, h3, h4, li, td, th, .badge) { overflow-wrap: anywhere; }
+
+  /* the app's custom dark palette (DESIGN.md §3.5) */
+  [data-theme="pasteldusk"] {
+    --color-base-100: #2b2b33; --color-base-200: #24242b; --color-base-300: #1d1d23;
+    --color-base-content: #eae8f2;
+    --color-primary: #b7a6ea; --color-primary-content: #2b2b33;
+    --color-secondary: #93d6c6; --color-secondary-content: #1f3a34;
+    --color-accent: #f4b6c5; --color-accent-content: #43222c;
+    --color-neutral: #3d3d47; --color-neutral-content: #eae8f2;
+    --color-info: #9cc7e8; --color-info-content: #1e3346;
+    --color-success: #a3d4ae; --color-success-content: #1e3a26;
+    --color-warning: #ecd3a0; --color-warning-content: #443a1e;
+    --color-error: #e89da8; --color-error-content: #44232a;
+    --radius-selector: 0.5rem; --radius-field: 0.5rem; --radius-box: 1rem;
+    --size-selector: 0.25rem; --size-field: 0.25rem;
+    --border: 1px; --depth: 1; --noise: 0;
+  }
+
+  .cat-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 0.6rem; cursor: pointer; }
+  .cat-row:hover { background: color-mix(in oklab, var(--color-base-content) 6%, transparent); }
+  .cat-row.checked { background: color-mix(in oklab, var(--row-color) 14%, transparent); }
+  .cat-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .cat-row .cat-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .del-x { margin-left: auto; opacity: .55; }
+  .del-x:hover { opacity: 1; color: var(--color-error); }
+  .mock-scroll { max-height: 260px; overflow-y: auto; }
+  .assign-pick {
+    cursor: pointer; border: 2px solid transparent; border-radius: 1rem;
+    padding: 3px 10px 3px 4px; display: inline-flex; align-items: center; gap: 6px;
+    background: var(--color-base-200);
+  }
+  .assign-pick.on {
+    border-color: var(--row-color);
+    background: color-mix(in srgb, var(--row-color) 14%, var(--color-base-100));
+  }
+  input[type="color"].swatch {
+    width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
+    background: none; cursor: pointer; flex: none;
+  }
+  input[type="color"].swatch::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type="color"].swatch::-webkit-color-swatch {
+    border: 1px solid color-mix(in oklab, var(--color-base-content) 25%, transparent);
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body class="bg-base-200 min-h-screen text-base-content">
+
+<div class="max-w-[1100px] mx-auto p-5 flex flex-col gap-6">
+
+  <!-- ============ HEADER ============ -->
+  <header>
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-primary text-primary-content grid place-items-center text-lg">🏷️</div>
+      <div>
+        <h1 class="text-xl font-bold leading-tight">Category management — design review</h1>
+        <p class="text-sm opacity-60">Pick categories from a searchable dialog in the task form · create categories on the fly · manage them all from the Tasks tab.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ CURRENT STATE ============ -->
+  <section class="card bg-base-100 border border-base-content/10">
+    <div class="card-body p-4 gap-3">
+      <h2 class="card-title text-base">Where we are today</h2>
+      <div class="grid md:grid-cols-2 gap-3 text-sm">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <span class="badge badge-ghost border-base-content/10 shrink-0">task form</span>
+            <p class="text-sm min-w-0">Category is a plain <code class="text-xs">select</code> fed by the 5 seeded defaults.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="badge badge-ghost border-base-content/10 shrink-0">backend</span>
+            <p class="text-sm min-w-0">Full category CRUD already exists: <code class="text-xs">POST/PUT/DELETE /api/categories</code> + live sync.</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-2 min-w-0">
+          <span class="badge badge-ghost border-base-content/10 shrink-0">so…</span>
+          <p class="text-sm min-w-0"><b>This is a pure frontend feature</b> — no schema or API work needed. Deleting a category keeps its tasks; they fall back to “No category” (schema <code class="text-xs">ON DELETE SET NULL</code>).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MOCKUP A: PICKER DIALOG ============ -->
+  <section class="card bg-base-100 border border-base-content/10">
+    <div class="card-body p-4 gap-4">
+      <div>
+        <h2 class="card-title text-base">A · Task form → “Choose category” dialog</h2>
+        <p class="text-sm opacity-60">The task form's category <code>select</code> becomes a button showing the current pick. It opens this dialog: search filters the list, checkboxes pick, “＋ Add new” creates a category that is <b>selected by default</b> and removable (✕) until you Apply. Cancel discards; Apply commits.</p>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-4 items-start">
+        <!-- full task form mock (proposed layout) -->
+        <div class="border border-base-content/10 rounded-xl p-4 bg-base-200/40 flex flex-col gap-3">
+          <p class="text-xs opacity-50 uppercase tracking-wide">Add / edit task — proposed layout</p>
+          <input type="text" class="input input-sm w-full" placeholder="Task name…" aria-label="Task name">
+          <div class="grid grid-cols-2 gap-3">
+            <fieldset class="flex flex-col gap-1 min-w-0">
+              <legend class="text-xs opacity-60">Duration (15-min)</legend>
+              <div class="join w-full items-stretch">
+                <button class="join-item btn btn-sm" type="button">−</button>
+                <span class="join-item flex-1 grid place-items-center bg-base-200 text-sm font-semibold min-h-8">45 min</span>
+                <button class="join-item btn btn-sm" type="button">+</button>
+              </div>
+            </fieldset>
+            <fieldset class="flex flex-col gap-1 min-w-0">
+              <legend class="text-xs opacity-60">Frequency</legend>
+              <select class="select select-sm w-full h-8" aria-label="Frequency">
+                <option>On days of week</option>
+                <option>One-off</option>
+                <option>Every N days</option>
+              </select>
+            </fieldset>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs opacity-60 shrink-0">Reference time</span>
+            <input type="time" class="input input-sm w-28" value="16:00" step="900">
+            <span class="text-[10px] opacity-40 truncate">Mon · Wed · Fri — occurrences generated for the 30-day window</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-xs opacity-60">Assignees</span>
+            <div class="flex flex-wrap gap-2">
+              <span class="assign-pick on text-sm" style="--row-color:#e11d48"><span class="cat-dot" style="background:#e11d48"></span><span class="font-medium">Mom</span></span>
+              <span class="assign-pick text-sm" style="--row-color:#d97706"><span class="cat-dot" style="background:#d97706"></span><span class="font-medium">Aria</span><span class="badge badge-xs badge-ghost">persona</span></span>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 min-w-0">
+            <span class="text-xs opacity-60">Category</span>
+            <button type="button" class="btn btn-sm w-full justify-start gap-2 min-w-0" onclick="openPicker()">
+              <span class="cat-dot" style="background: var(--color-base-content); opacity:.3" id="pick-dot"></span>
+              <span id="pick-label" class="opacity-60 truncate min-w-0 text-left">No category</span>
+              <span class="ml-auto opacity-40 shrink-0">▾</span>
+            </button>
+          </div>
+          <textarea class="textarea w-full" rows="2" placeholder="Notes (optional)…"></textarea>
+          <p class="text-xs opacity-50" id="applied-note">Dialog state is local until <b>Apply</b>.</p>
+        </div>
+
+        <!-- the dialog mock -->
+        <div class="border border-base-content/25 rounded-xl shadow-lg bg-base-100 p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-sm">Choose category</h3>
+            <span class="text-[10px] opacity-40 whitespace-nowrap shrink-0" id="pick-count">0 selected</span>
+          </div>
+          <input type="text" class="input input-sm w-full" placeholder="Search categories…" id="cat-search" oninput="renderPicker()">
+          <div class="mock-scroll flex flex-col gap-0.5" id="cat-list"></div>
+          <div class="flex gap-2 items-center border-t border-base-content/10 pt-2">
+            <input type="text" class="input input-sm grow" placeholder="New category name…" id="new-name" onkeydown="if(event.key==='Enter'){event.preventDefault();addNew();}">
+            <button type="button" class="btn btn-sm btn-primary" onclick="addNew()">＋ Add</button>
+          </div>
+          <p class="text-[10px] opacity-50">New ones get the next palette color and a ✕ until Apply — existing ones can only be removed in the category manager.</p>
+          <div class="flex justify-end gap-2">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="cancelPicker()">Cancel</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="applyPicker()">Apply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MOCKUP B: MANAGER ============ -->
+  <section class="card bg-base-100 border border-base-content/10">
+    <div class="card-body p-4 gap-4">
+      <div>
+        <h2 class="card-title text-base">B · Tasks tab → “Manage categories”</h2>
+        <p class="text-sm opacity-60">A button next to “Add task” opens the manager: every category (defaults included) can be renamed-in-place… actually — v1 keeps it lean: <b>add</b> with a color picker and <b>delete</b>. Delete warns when tasks still use the category (they fall back to “No category”).</p>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-4 items-start">
+        <div class="border border-base-content/10 rounded-xl p-4 bg-base-200/40">
+          <p class="text-xs opacity-50 uppercase tracking-wide mb-2">Tasks tab header (excerpt)</p>
+          <div class="flex gap-2">
+            <button class="btn btn-ghost btn-sm" type="button">🏷️ Manage categories</button>
+            <button class="btn btn-primary btn-sm" type="button">➕ Add task</button>
+          </div>
+        </div>
+
+        <div class="border border-base-content/25 rounded-xl shadow-lg bg-base-100 p-4 flex flex-col gap-3">
+          <h3 class="font-bold text-sm">Manage categories</h3>
+          <div class="mock-scroll flex flex-col gap-0.5" id="mgr-list"></div>
+          <div class="flex gap-2 items-center border-t border-base-content/10 pt-2">
+            <input type="color" class="swatch" value="#22d3ee" id="mgr-color" title="Category color">
+            <input type="text" class="input input-sm grow" placeholder="New category name…" id="mgr-name" onkeydown="if(event.key==='Enter'){event.preventDefault();mgrAdd();}">
+            <button type="button" class="btn btn-sm btn-primary" onclick="mgrAdd()">＋ Add</button>
+          </div>
+          <div class="flex justify-end gap-2"><button type="button" class="btn btn-sm" onclick="toastMock('Manager closed')">Done</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BEHAVIOR SPEC ============ -->
+  <section class="card bg-base-100 border border-base-content/10">
+    <div class="card-body p-4 gap-3">
+      <h2 class="card-title text-base">Behavior decisions baked into the mockups</h2>
+      <div class="grid md:grid-cols-2 gap-3 text-sm">
+        <ul class="flex flex-col gap-2 list-disc list-inside opacity-80">
+          <li><b>Add in dialog = created immediately</b> (<code class="text-xs">POST /api/categories</code>) so it also appears on the other device and in filters right away; Apply only assigns it to the task.</li>
+          <li><b>✕ in dialog</b> deletes only categories created in this dialog session (never seeded/existing ones) — safety against typos.</li>
+          <li><b>Delete in manager</b> works on any category; tasks using it fall back to “No category” (never blocked).</li>
+        </ul>
+        <ul class="flex flex-col gap-2 list-disc list-inside opacity-80">
+          <li>Live sync: creates/deletes broadcast over the socket, so the picker on the other device updates instantly.</li>
+          <li>The 5 seeded defaults are ordinary rows — fully deletable in the manager.</li>
+          <li>Category colors stay data-driven; event blocks, chips and filters keep reading them from the table.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DECISIONS ============ -->
+  <section class="card bg-base-100 border border-base-content/10">
+    <div class="card-body p-4 gap-4">
+      <div>
+        <h2 class="card-title text-base">Three decisions to lock before I build</h2>
+        <p class="text-sm opacity-60">Pick per question and queue the answer — or just annotate the mockups directly.</p>
+      </div>
+
+      <form data-lavish-question="cardinality" class="flex flex-col gap-2 border border-base-content/10 rounded-xl p-3"
+        onsubmit="event.preventDefault(); const v=new FormData(event.currentTarget).get('cardinality'); if(v) window.lavish.queuePrompt('Category cardinality: '+v, {tag:'decision', text:'Cardinality: '+v, data:{question:'cardinality', answer:v}}); window.lavish.sendQueuedPrompts();">
+        <span class="text-sm font-semibold">1 · One category per task, or several?</span>
+        <label class="flex items-center gap-2 text-sm"><input type="radio" name="cardinality" value="single" checked> <span><b>Single</b> (recommended) — matches the schema (<code class="text-xs">tasks.category_id</code>); checkboxes behave single-select; event tint = its category color. No migration.</span></label>
+        <label class="flex items-center gap-2 text-sm"><input type="radio" name="cardinality" value="multi"> <span><b>Multi</b> — needs a <code class="text-xs">task_categories</code> join table + migration; filters become any-match; event tint uses the first color.</span></label>
+        <button type="submit" class="btn btn-sm btn-primary self-start">Queue answer</button>
+      </form>
+
+      <form data-lavish-question="create-timing" class="flex flex-col gap-2 border border-base-content/10 rounded-xl p-3"
+        onsubmit="event.preventDefault(); const v=new FormData(event.currentTarget).get('timing'); if(v) window.lavish.queuePrompt('When “＋ Add” creates the category: '+v, {tag:'decision', text:'Create timing: '+v, data:{question:'create-timing', answer:v}}); window.lavish.sendQueuedPrompts();">
+        <span class="text-sm font-semibold">2 · When does “＋ Add” in the dialog actually create the category?</span>
+        <label class="flex items-center gap-2 text-sm"><input type="radio" name="timing" value="immediate" checked> <span><b>Immediately</b> (recommended, mock behavior) — it shows up everywhere right away; the ✕ undoes a typo before Apply.</span></label>
+        <label class="flex items-center gap-2 text-sm"><input type="radio" name="timing" value="on-apply"> <span><b>Only on Apply</b> — nothing persists until Apply; but then two devices can't see it mid-edit and cancel loses it silently.</span></label>
+        <button type="submit" class="btn btn-sm btn-primary self-start">Queue answer</button>
+      </form>
+
+      <form data-lavish-question="colors" class="flex flex-col gap-2 border border-base-content/10 rounded-xl p-3"
+        onsubmit="event.preventDefault(); const v=new FormData(event.currentTarget).get('colors'); if(v) window.lavish.queuePrompt('Category colors: '+v, {tag:'decision', text:'Colors: '+v, data:{question:'colors', answer:v}}); window.lavish.sendQueuedPrompts();">
+        <span class="text-sm font-semibold">3 · Who picks the color?</span>
+        <label class="flex items-center gap-2 text-sm"><input type="radio" name="colors" value="auto-picker" checked> <span><b>Auto in dialog, editable in manager</b> (recommended, mock behavior) — next palette color on add; the manager's color swatch lets you change any category's color later.</span></label>
+        <label class="flex items-center gap-2 text-sm"><input type="radio" name="colors" value="auto-only"> <span><b>Auto only</b> — no color control anywhere; simplest.</span></label>
+        <button type="submit" class="btn btn-sm btn-primary self-start">Queue answer</button>
+      </form>
+    </div>
+  </section>
+
+  <p class="text-center text-xs opacity-40 pb-4">Design source: this artifact matches the app's own Tailwind v4 + DaisyUI v5 setup with the Pastel Dusk theme (the app's new default).</p>
+</div>
+
+<script>
+  const SEED = [
+    { name: "Chores",    color: "#f59e0b" },
+    { name: "School",    color: "#0ea5e9" },
+    { name: "Family",    color: "#f43f5e" },
+    { name: "Meals",     color: "#84cc16" },
+    { name: "Self-care", color: "#a78bfa" },
+  ];
+  const EXTRA = ["#22d3ee", "#e879f9", "#fb923c", "#4ade80", "#facc15", "#38bdf8", "#c084fc", "#2dd4bf"];
+  let pickerCats = SEED.map((c, i) => ({ ...c, id: i + 1, isNew: false }));
+  let picked = new Set();
+  let nextId = 100;
+  let nextColor = 0;
+  let applied = null;
+
+  function toastMock(msg) {
+    const note = document.getElementById("applied-note");
+    if (note) { note.textContent = msg; note.classList.add("text-primary"); }
+  }
+
+  function renderPicker() {
+    const q = (document.getElementById("cat-search").value || "").toLowerCase();
+    const list = document.getElementById("cat-list");
+    list.innerHTML = "";
+    const visible = pickerCats.filter(c => c.name.toLowerCase().includes(q));
+    if (visible.length === 0) list.innerHTML = '<p class="text-xs opacity-50 p-2">No matches — add it below.</p>';
+    for (const c of visible) {
+      const row = document.createElement("label");
+      row.className = "cat-row" + (picked.has(c.id) ? " checked" : "");
+      row.style.setProperty("--row-color", c.color);
+      row.innerHTML =
+        `<input type="checkbox" ${picked.has(c.id) ? "checked" : ""} class="checkbox checkbox-sm checkbox-primary">
+         <span class="cat-dot" style="background:${c.color}"></span>
+         <span class="cat-name text-sm font-medium">${c.name}</span>
+         ${c.isNew ? '<span class="badge badge-xs badge-success border-0 shrink-0">new</span><button type="button" class="del-x btn btn-ghost btn-xs" title="Delete (it was just added)">✕</button>' : ''}`;
+      row.querySelector("input").addEventListener("change", (e) => {
+        // single-select behavior (decision 1 default): picking one clears others
+        picked = e.target.checked ? new Set([c.id]) : new Set();
+        renderPicker();
+      });
+      const x = row.querySelector(".del-x");
+      if (x) x.addEventListener("click", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        pickerCats = pickerCats.filter(k => k.id !== c.id);
+        picked.delete(c.id);
+        renderPicker();
+        toastMock(`Deleted “${c.name}” (not applied yet)`);
+      });
+      list.appendChild(row);
+    }
+    document.getElementById("pick-count").textContent = `${picked.size} selected`;
+  }
+
+  function addNew() {
+    const input = document.getElementById("new-name");
+    const name = input.value.trim();
+    if (!name) return;
+    if (pickerCats.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      toastMock(`“${name}” already exists`);
+      input.value = "";
+      return;
+    }
+    const color = EXTRA[nextColor++ % EXTRA.length];
+    const cat = { name, color, id: nextId++, isNew: true };
+    pickerCats.push(cat);
+    picked = new Set([cat.id]); // apply by default
+    input.value = "";
+    renderPicker();
+    toastMock(`Added “${name}” — selected by default`);
+  }
+
+  function applyPicker() {
+    const c = pickerCats.find(k => picked.has(k.id));
+    applied = c ?? null;
+    document.getElementById("pick-dot").style.background = applied ? applied.color : "var(--color-base-content)";
+    document.getElementById("pick-dot").style.opacity = applied ? 1 : .3;
+    document.getElementById("pick-label").textContent = applied ? applied.name : "No category";
+    document.getElementById("pick-label").classList.toggle("opacity-60", !applied);
+    toastMock(applied ? `Applied “${applied.name}” to the task ✓` : "Cleared category");
+  }
+
+  function cancelPicker() { toastMock("Cancelled — picker state reverted"); picked = applied ? new Set([applied.id]) : new Set(); renderPicker(); }
+  function openPicker() { renderPicker(); document.getElementById("cat-search").focus(); }
+
+  // ---- manager mock ----
+  let mgrCats = SEED.map((c, i) => ({ ...c, id: i + 1, usage: [3, 2, 1, 4, 0][i] }));
+  function renderMgr() {
+    const list = document.getElementById("mgr-list");
+    list.innerHTML = "";
+    for (const c of mgrCats) {
+      const row = document.createElement("div");
+      row.className = "cat-row";
+      row.style.setProperty("--row-color", c.color);
+      row.innerHTML =
+        `<span class="cat-dot" style="background:${c.color}"></span>
+         <span class="cat-name text-sm font-medium">${c.name}</span>
+         <span class="badge badge-ghost badge-xs border-base-content/10">${c.usage} ${c.usage === 1 ? "task" : "tasks"}</span>
+         <button type="button" class="del-x btn btn-ghost btn-xs" title="Delete category">🗑</button>`;
+      row.querySelector(".del-x").addEventListener("click", () => {
+        mgrCats = mgrCats.filter(k => k.id !== c.id);
+        renderMgr();
+        toastMock(c.usage > 0 ? `Deleted “${c.name}” — ${c.usage} task(s) now have no category` : `Deleted “${c.name}”`);
+      });
+      list.appendChild(row);
+    }
+  }
+  function mgrAdd() {
+    const name = document.getElementById("mgr-name").value.trim();
+    if (!name) return;
+    const color = document.getElementById("mgr-color").value;
+    if (mgrCats.some(c => c.name.toLowerCase() === name.toLowerCase())) { toastMock(`“${name}” already exists`); return; }
+    mgrCats.push({ name, color, id: nextId++, usage: 0 });
+    document.getElementById("mgr-name").value = "";
+    renderMgr();
+    toastMock(`Added “${name}”`);
+  }
+  renderPicker();
+  renderMgr();
+</script>
+</body>
+</html>
