@@ -6,7 +6,7 @@ export function Toaster(): React.JSX.Element {
   const dismiss = useToastStore((s) => s.dismiss);
   if (toasts.length === 0) return <div />;
   return (
-    <div className="toast toast-top toast-center z-[100] pointer-events-none">
+    <div className="toast toast-bottom toast-right z-[100] pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
