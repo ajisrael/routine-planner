@@ -92,8 +92,8 @@ export interface Snapshot {
   events: ScheduledEvent[];
 }
 
-/** 30-day display/generation horizon. */
-export const WINDOW_DAYS = 30;
+/** 30-day display/generation horizon — the theoretical template month. */
+export { TEMPLATE_DAYS } from "./recurrence.js";
 
 /** Snapped to the calendar's 15-minute granularity. */
 export const SLOT_MINUTES = 15;
