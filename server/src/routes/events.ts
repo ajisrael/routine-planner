@@ -1,13 +1,19 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
+import { TEMPLATE_DAYS, templateDay, templateDayNumber } from "@planner/shared";
 import { db } from "../db.js";
 import { broadcaster } from "../services/broadcaster.js";
 import { syncOccurrenceToSiblings, type SyncScope } from "../services/syncActions.js";
-import { currentWindow, mapEvent } from "../services/rows.js";
+import { mapEvent } from "../services/rows.js";
 
 export const eventsRouter = Router();
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** Template day storage strings are zero-padded ("01"…"30"). */
+export function isValidTemplateDay(v: unknown): v is string {
+  if (typeof v !== "string" || !/^\d{2}$/.test(v)) return false;
+  const n = templateDayNumber(v);
+  return n >= 1 && n <= TEMPLATE_DAYS;
+}
 
 function bad(res: Response, msg: string): void {
   res.status(400).json({ error: msg });
@@ -22,11 +28,10 @@ function getEvent(id: number): Record<string, unknown> | undefined {
 const clampStart = (n: number): number => Math.max(0, Math.min(1439, Math.round(n)));
 const clampEnd = (n: number): number => Math.max(1, Math.min(1440, Math.round(n)));
 
-// GET /api/events?from&to&person — events in a date range, optional person filter
+// GET /api/events?from&to&person — events in a template-day range, optional person filter
 eventsRouter.get("/", (req: Request, res: Response) => {
-  const win = currentWindow();
-  const from = typeof req.query.from === "string" && ISO_DATE.test(req.query.from) ? req.query.from : win.start;
-  const to = typeof req.query.to === "string" && ISO_DATE.test(req.query.to) ? req.query.to : win.end;
+  const from = isValidTemplateDay(req.query.from) ? req.query.from : "01";
+  const to = isValidTemplateDay(req.query.to) ? req.query.to : templateDay(TEMPLATE_DAYS);
   const person = req.query.person == null ? null : Number(req.query.person);
 
   let sql = "SELECT * FROM scheduled_events WHERE event_date >= ? AND event_date <= ?";
@@ -43,10 +48,10 @@ eventsRouter.get("/", (req: Request, res: Response) => {
 eventsRouter.post("/", (req: Request, res: Response) => {
   const body = req.body ?? {};
   const taskId = Number(body.taskId);
-  const eventDate = typeof body.eventDate === "string" ? body.eventDate : "";
+  const eventDate = body.eventDate;
   const startMinute = Number(body.startMinute);
   if (!Number.isInteger(taskId)) return bad(res, "taskId required");
-  if (!ISO_DATE.test(eventDate)) return bad(res, "eventDate must be an ISO date (YYYY-MM-DD)");
+  if (!isValidTemplateDay(eventDate)) return bad(res, `eventDate must be a template day (01–${TEMPLATE_DAYS})`);
   if (!Number.isInteger(startMinute) || startMinute < 0 || startMinute > 1439) {
     return bad(res, "startMinute must be 0–1439");
   }
@@ -99,8 +104,8 @@ eventsRouter.put("/:id", (req: Request, res: Response) => {
   }
   const body = req.body ?? {};
   const eventDate =
-    body.eventDate === undefined ? (row.event_date as string) : String(body.eventDate);
-  if (!ISO_DATE.test(eventDate)) return bad(res, "eventDate must be an ISO date (YYYY-MM-DD)");
+    body.eventDate === undefined ? (row.event_date as string) : (body.eventDate as string);
+  if (!isValidTemplateDay(eventDate)) return bad(res, `eventDate must be a template day (01–${TEMPLATE_DAYS})`);
 
   const startChanged = body.startMinute !== undefined;
   const endChanged = body.endMinute !== undefined;

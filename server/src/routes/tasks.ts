@@ -1,16 +1,11 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import type { RecurrenceRuleType, ScheduledEvent } from "@planner/shared";
+import { TEMPLATE_DAYS } from "@planner/shared";
 import { db } from "../db.js";
 import { assigneeKey, broadcaster, type Broadcaster } from "../services/broadcaster.js";
 import { broadcastRegeneration, computeReference, regenerateForRule } from "../services/regenerate.js";
-import {
-  currentWindow,
-  mapEvent,
-  mapRule,
-  mapTask,
-  todayISO,
-} from "../services/rows.js";
+import { mapEvent, mapRule, mapTask } from "../services/rows.js";
 
 export const tasksRouter = Router();
 
@@ -21,8 +16,6 @@ const RULE_TYPES: RecurrenceRuleType[] = [
   "monthly_date",
   "monthly_weekday",
 ];
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 interface RuleBody {
   ruleType: RecurrenceRuleType;
@@ -56,17 +49,14 @@ interface TaskResponse {
 }
 
 function taskResponse(taskId: number): TaskResponse {
-  const win = currentWindow();
   const ruleRow = getRuleForTask(taskId);
   return {
     task: mapTask(getTask(taskId)!),
     rule: ruleRow ? mapRule(ruleRow) : null,
     events: (
       db
-        .prepare(
-          "SELECT * FROM scheduled_events WHERE task_id = ? AND event_date >= ? AND event_date <= ?",
-        )
-        .all(taskId, win.start, win.end) as Array<Record<string, unknown>>
+        .prepare("SELECT * FROM scheduled_events WHERE task_id = ? ORDER BY event_date, start_minute")
+        .all(taskId) as Array<Record<string, unknown>>
     ).map(mapEvent),
   };
 }
@@ -95,9 +85,11 @@ function validateRule(body: RuleBody): string | null {
     case "monthly_date":
       return Number.isInteger(body.dayOfMonth) &&
         (body.dayOfMonth as number) >= 1 &&
-        (body.dayOfMonth as number) <= 31
+        (body.dayOfMonth as number) <= TEMPLATE_DAYS
         ? null
-        : "dayOfMonth must be 1–31";
+        : `dayOfMonth must be 1–${TEMPLATE_DAYS} (template days)`;
+    case "monthly_weekday":
+      return "monthly_weekday is not representable in the 30-day template";
     case "monthly_weekday": {
       const { monthWeek, monthDow } = body;
       if (!Number.isInteger(monthWeek) || !((monthWeek as number) === -1 || ((monthWeek as number) >= 1 && (monthWeek as number) <= 4))) {
@@ -112,8 +104,6 @@ function validateRule(body: RuleBody): string | null {
 }
 
 function writeRule(body: RuleBody, taskId: number, existingId: number | null): number {
-  const startDate =
-    typeof body.startDate === "string" && ISO_DATE.test(body.startDate) ? body.startDate : todayISO();
   const daysJson = body.daysOfWeek ? JSON.stringify(body.daysOfWeek) : null;
   const params = [
     body.ruleType,
@@ -122,7 +112,7 @@ function writeRule(body: RuleBody, taskId: number, existingId: number | null): n
     body.ruleType === "monthly_date" ? body.dayOfMonth : null,
     body.ruleType === "monthly_weekday" ? body.monthWeek : null,
     body.ruleType === "monthly_weekday" ? body.monthDow : null,
-    startDate,
+    "01",
   ] as const;
   if (existingId != null) {
     db.prepare(
@@ -273,11 +263,8 @@ tasksRouter.delete("/:id", (req: Request, res: Response) => {
     res.status(404).json({ error: "task not found" });
     return;
   }
-  const win = currentWindow();
   const eventIds = (
-    db
-      .prepare("SELECT id FROM scheduled_events WHERE task_id = ? AND event_date >= ? AND event_date <= ?")
-      .all(id, win.start, win.end) as Array<{ id: number }>
+    db.prepare("SELECT id FROM scheduled_events WHERE task_id = ?").all(id) as Array<{ id: number }>
   ).map((r) => r.id);
   const rule = getRuleForTask(id);
   const assignees = db.prepare("SELECT user_id FROM task_assignees WHERE task_id = ?").all(id) as Array<{
@@ -326,7 +313,6 @@ tasksRouter.put("/:id/recurrence", (req: Request, res: Response) => {
   const err = validateRule(body);
   if (err) return bad(res, err);
 
-  const win = currentWindow();
   const existing = getRuleForTask(id);
   let detached: number[] = [];
   let changes: { deletedIds: number[]; inserted: ScheduledEvent[] } | null = null;
@@ -337,11 +323,9 @@ tasksRouter.put("/:id/recurrence", (req: Request, res: Response) => {
       if (body.ruleType === "none") {
         // §5.7: occurrences are kept but detached from the rule.
         detached = (
-          db
-            .prepare(
-              "SELECT id FROM scheduled_events WHERE rule_id = ? AND event_date >= ? AND event_date <= ?",
-            )
-            .all(ruleId, win.start, win.end) as Array<{ id: number }>
+          db.prepare("SELECT id FROM scheduled_events WHERE rule_id = ?").all(ruleId) as Array<{
+            id: number;
+          }>
         ).map((r) => r.id);
         db.prepare("UPDATE scheduled_events SET rule_id = NULL WHERE rule_id = ?").run(ruleId);
         db.prepare(
@@ -385,15 +369,10 @@ tasksRouter.delete("/:id/events", (req: Request, res: Response) => {
     res.status(404).json({ error: "task not found" });
     return;
   }
-  const win = currentWindow();
   const eventIds = (
-    db
-      .prepare("SELECT id FROM scheduled_events WHERE task_id = ? AND event_date >= ? AND event_date <= ?")
-      .all(id, win.start, win.end) as Array<{ id: number }>
+    db.prepare("SELECT id FROM scheduled_events WHERE task_id = ?").all(id) as Array<{ id: number }>
   ).map((r) => r.id);
-  db.prepare(
-    "DELETE FROM scheduled_events WHERE task_id = ? AND event_date >= ? AND event_date <= ?",
-  ).run(id, win.start, win.end);
+  db.prepare("DELETE FROM scheduled_events WHERE task_id = ?").run(id);
   broadcaster.emitBatch(
     eventIds.map((eid) => ({ type: "delete" as const, collection: "events" as const, id: eid })),
   );

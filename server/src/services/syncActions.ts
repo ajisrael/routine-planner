@@ -1,17 +1,16 @@
 import type { ScheduledEvent } from "@planner/shared";
 import { db } from "../db.js";
 import type { Broadcaster } from "./broadcaster.js";
-import { currentWindow, mapEvent } from "./rows.js";
+import { mapEvent } from "./rows.js";
 
 export type SyncScope = "all" | "future";
 
 /**
- * "Sync to all" / "sync future" (DATA_MODEL.md §5.5).
+ * "Sync to all" / "sync future" (DATA_MODEL.md §5.5) across the template.
  *
  * Propagates an anchor occurrence's start/end to its siblings under the same
- * task. `future` only touches events with event_date >= anchor date. All
- * sibling rows are updated in the DB; only rows inside the display window
- * are broadcast (clients only hold the window).
+ * task. `future` only touches template days >= the anchor's day (day strings
+ * are zero-padded, so lexical comparison is correct).
  */
 export function syncOccurrenceToSiblings(
   anchorEventId: number,
@@ -23,7 +22,6 @@ export function syncOccurrenceToSiblings(
     | undefined;
   if (!anchor) return [];
 
-  const win = currentWindow();
   const update = db.transaction((): ScheduledEvent[] => {
     const siblings = (
       scope === "future"
@@ -46,7 +44,7 @@ export function syncOccurrenceToSiblings(
       try {
         stmt.run(anchor.start_minute, anchor.end_minute, row.id);
       } catch (e) {
-        // A sibling may already occupy (task, date, start) — skip it rather
+        // A sibling may already occupy (task, day, start) — skip it rather
         // than failing the whole sync (overlaps are warnings, not blocks).
         if (e instanceof Error && e.message.includes("UNIQUE constraint")) continue;
         throw e;
@@ -55,9 +53,7 @@ export function syncOccurrenceToSiblings(
         string,
         unknown
       >;
-      if ((fresh.event_date as string) >= win.start && (fresh.event_date as string) <= win.end) {
-        changed.push(mapEvent(fresh));
-      }
+      changed.push(mapEvent(fresh));
     }
     return changed;
   });

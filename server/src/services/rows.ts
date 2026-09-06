@@ -1,4 +1,3 @@
-import { addDaysISO } from "@planner/shared";
 import type {
   Category,
   ScheduledEvent,
@@ -76,23 +75,10 @@ export function mapAssignee(r: Record<string, unknown>): TaskAssignee {
   return { taskId: r.task_id as number, userId: r.user_id as number };
 }
 
-/** Local "today" as an ISO date string (server-local timezone). */
-export function todayISO(): string {
-  const d = new Date();
-  const p = (n: number): string => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-/** Inclusive 30-day window [today, today + WINDOW_DAYS - 1]. */
-export function currentWindow(): { start: string; end: string } {
-  const start = todayISO();
-  return { start, end: addDaysISO(start, 29) };
-}
-
-/** Full-dataset snapshot for initial load and reconnect (ARCHITECTURE.md §6.1). */
+/** Full-dataset snapshot for initial load and reconnect (ARCHITECTURE.md §6.1).
+ * The 30-day template month is the entire dataset — return everything. */
 export function buildSnapshot(): Snapshot {
-  const win = currentWindow();
-  const rows = (sql: string, ...params: Array<string | number>): Record<string, unknown>[] =>
+  const rows = (sql: string, ...params: (string | number)[]): Record<string, unknown>[] =>
     db.prepare(sql).all(...params) as Record<string, unknown>[];
 
   return {
@@ -101,10 +87,6 @@ export function buildSnapshot(): Snapshot {
     tasks: rows("SELECT * FROM tasks ORDER BY name COLLATE NOCASE").map(mapTask),
     assignees: rows("SELECT * FROM task_assignees").map(mapAssignee),
     recurrenceRules: rows("SELECT * FROM recurrence_rules").map(mapRule),
-    events: rows(
-      "SELECT * FROM scheduled_events WHERE event_date >= ? AND event_date <= ? ORDER BY event_date, start_minute",
-      win.start,
-      win.end,
-    ).map(mapEvent),
+    events: rows("SELECT * FROM scheduled_events ORDER BY event_date, start_minute").map(mapEvent),
   };
 }
