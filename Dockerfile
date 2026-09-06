@@ -42,6 +42,7 @@ COPY --from=build /app/shared/dist shared/dist
 COPY --from=build /app/server/dist server/dist
 COPY --from=build /app/web/dist web/dist
 COPY package.json ./
+COPY scripts scripts/
 
 RUN addgroup -S planner && adduser -S planner -G planner \
     && mkdir -p /data && chown planner:planner /data

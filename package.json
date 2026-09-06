@@ -17,7 +17,9 @@
     "build": "npm run build -w @planner/shared && npm run build -w @planner/server && npm run build -w @planner/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "start": "node server/dist/index.js"
+    "start": "node server/dist/index.js",
+    "db:clear": "node scripts/clear-db.mjs",
+    "db:clear:docker": "docker compose exec planner node scripts/clear-db.mjs /data/app.db"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
