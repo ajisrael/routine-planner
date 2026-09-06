@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import type { Task } from "@planner/shared";
 import { describeRule } from "@planner/shared";
-import { usePlannerStore, assigneesOfTask, ruleForTask, categoryById, eventsOfTask } from "../store";
+import { usePlannerStore, assigneesOfTask, ruleForTask, categoryById } from "../store";
 import { AvatarStack } from "../components/Avatar";
 import { CategoryDot } from "../components/Chips";
 import { TaskForm } from "../components/taskForm/TaskForm";
 import { CategoryManager } from "../components/CategoryManager";
-import { occurrencesThisWeek } from "../components/library/TaskLibrary";
+import { scheduledOccurrenceCount } from "../components/library/TaskLibrary";
 import { toast } from "../store/toasts";
 
 /** Task Library tab (REQUIREMENTS.md §2.1): manage tasks, filter, add/edit. */
@@ -118,9 +118,7 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }): React.J
   const category = categoryById(task.categoryId);
   const rule = ruleForTask(task.id);
   const assigneeUsers = assigneesOfTask(task.id);
-  const events = eventsOfTask(task.id);
-  const thisWeek = occurrencesThisWeek(task.id);
-  const scheduledTotal = events.length;
+  const scheduledTotal = scheduledOccurrenceCount(task.id);
 
   const freqLabel = rule ? describeRule(rule) : "One-off";
 
@@ -157,7 +155,7 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }): React.J
             🔁 {freqLabel}
           </span>
           {scheduledTotal > 0 ? (
-            <span className="badge badge-ghost border-base-content/10 gap-1">📅 {thisWeek}× this week</span>
+            <span className="badge badge-ghost border-base-content/10 gap-1">📅 {scheduledTotal}× scheduled</span>
           ) : (
             <span className="badge badge-warning border-0 bg-warning/25 text-warning-content">unscheduled</span>
           )}

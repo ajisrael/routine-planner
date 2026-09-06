@@ -8,8 +8,7 @@ import type {
   TaskAssignee,
   User,
 } from "@planner/shared";
-import { WINDOW_DAYS } from "@planner/shared";
-import { addDaysISO, todayISO } from "../lib/dates";
+
 import { api, type TaskCreatePayload, type TaskRulePayload, type TaskUpdatePayload, type EventMovePayload } from "../api/client";
 import { conflictedPersonsFor } from "../selectors/conflicts";
 import { toast } from "./toasts";
@@ -25,10 +24,6 @@ export interface DeltaChange {
 }
 
 export const assigneeKey = (taskId: number, userId: number): string => `${taskId}:${userId}`;
-
-/** Display/generation horizon: [today, today + 29]. */
-export const windowStart = (): string => todayISO();
-export const windowEnd = (): string => addDaysISO(todayISO(), WINDOW_DAYS - 1);
 
 function upsertById<T extends { id: number }>(list: T[], item: T): T[] {
   const i = list.findIndex((x) => x.id === item.id);
@@ -347,9 +342,9 @@ export const eventsOfTask = (taskId: number): ScheduledEvent[] => {
   return s.events.filter((e) => e.taskId === taskId);
 };
 
-/** A task's reference start minute (§7): earliest occurrence in window, else 09:00. */
+/** A task's reference start minute (§7): earliest template occurrence, else 09:00. */
 export function referenceStartMinute(taskId: number): number {
-  const evs = eventsOfTask(taskId).filter((e) => e.eventDate >= windowStart());
+  const evs = eventsOfTask(taskId);
   if (evs.length === 0) return 540;
   return Math.min(...evs.map((e) => e.startMinute));
 }

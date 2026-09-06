@@ -2,10 +2,9 @@ import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Task } from "@planner/shared";
 import { describeRule } from "@planner/shared";
-import { usePlannerStore, assigneesOfTask, ruleForTask, categoryById, eventsOfTask, windowStart } from "../../store";
+import { usePlannerStore, assigneesOfTask, ruleForTask, categoryById, eventsOfTask } from "../../store";
 import { AvatarStack } from "../Avatar";
 import { CategoryDot } from "../Chips";
-import { addDaysISO } from "../../lib/dates";
 
 /** Compact draggable task row for the Plan rail (DESIGN.md §5.3). */
 export function LibraryRail({
@@ -130,10 +129,7 @@ function RailRow({
   );
 }
 
-/** "N× this week" count used by the Tasks tab cards. */
-export function occurrencesThisWeek(taskId: number): number {
-  const events = eventsOfTask(taskId);
-  const start = windowStart();
-  const end = addDaysISO(start, 6);
-  return events.filter((e) => e.eventDate >= start && e.eventDate <= end).length;
+/** Total occurrences of the task across the template. */
+export function scheduledOccurrenceCount(taskId: number): number {
+  return eventsOfTask(taskId).length;
 }
