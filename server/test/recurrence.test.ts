@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { addDaysISO, describeRule, isoDow, occurrenceDates } from "@planner/shared";
+import {
+  describeRule,
+  occurrenceDays,
+  templateDay,
+  templateDayNumber,
+  templateDow,
+  templateDowLabel,
+  templateWeek,
+} from "@planner/shared";
 import type { RuleShape } from "@planner/shared";
 
 const rule = (shape: Partial<RuleShape>): RuleShape => ({
@@ -9,106 +17,94 @@ const rule = (shape: Partial<RuleShape>): RuleShape => ({
   dayOfMonth: null,
   monthWeek: null,
   monthDow: null,
-  startDate: "2026-09-01",
+  startDate: "01",
   ...shape,
 });
 
-// 2026-09-01 is a Tuesday; Sep 2026: Tue 1, Wed 2, … Mon 7.
-const WIN = { start: "2026-09-01", end: "2026-09-30" };
+const FULL = { firstDay: 1, lastDay: 30 };
 
-describe("recurrence engine (DATA_MODEL.md §7)", () => {
-  it("none → no occurrences", () => {
-    expect(occurrenceDates(rule({ ruleType: "none" }), WIN.start, WIN.end)).toEqual([]);
+describe("template month structure", () => {
+  it("Day 1 is Monday; cycle repeats every 7 days", () => {
+    expect(templateDow(1)).toBe(1);
+    expect(templateDowLabel(1)).toBe("Mon");
+    expect(templateDowLabel(7)).toBe("Sun");
+    expect(templateDowLabel(8)).toBe("Mon");
+    expect(templateDow(30)).toBe(2); // Day 30 is a Tuesday
   });
 
-  it("weekly_days daily", () => {
-    const dates = occurrenceDates(rule({ ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7] }), WIN.start, WIN.end);
-    expect(dates).toHaveLength(30);
-    expect(dates[0]).toBe("2026-09-01");
-    expect(dates[29]).toBe("2026-09-30");
+  it("weeks: 4 full weeks + days 29–30", () => {
+    expect(templateWeek(1)).toBe(1);
+    expect(templateWeek(7)).toBe(1);
+    expect(templateWeek(8)).toBe(2);
+    expect(templateWeek(29)).toBe(5);
+    expect(templateWeek(30)).toBe(5);
   });
 
-  it("weekly_days weekdays only", () => {
-    const dates = occurrenceDates(rule({ ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5] }), "2026-09-07", "2026-09-13");
-    expect(dates).toEqual(["2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11"]);
-  });
-
-  it("weekly_days Mon Wed Fri", () => {
-    const dates = occurrenceDates(rule({ ruleType: "weekly_days", daysOfWeek: [1, 3, 5] }), "2026-09-01", "2026-09-14");
-    expect(dates).toEqual(["2026-09-02", "2026-09-04", "2026-09-07", "2026-09-09", "2026-09-11", "2026-09-14"]);
-  });
-
-  it("weekly_days respects startDate anchor (inclusive lower bound)", () => {
-    const dates = occurrenceDates(
-      rule({ ruleType: "weekly_days", daysOfWeek: [1], startDate: "2026-09-10" }),
-      "2026-09-01",
-      "2026-09-30",
-    );
-    expect(dates).toEqual(["2026-09-14", "2026-09-21", "2026-09-28"]);
-  });
-
-  it("interval_days every 3 days from anchor", () => {
-    const dates = occurrenceDates(rule({ ruleType: "interval_days", intervalDays: 3, startDate: "2026-09-01" }), WIN.start, WIN.end);
-    expect(dates[0]).toBe("2026-09-01");
-    expect(dates[1]).toBe("2026-09-04");
-    expect(dates).toHaveLength(10); // 1,4,7,…,28
-    expect(dates[9]).toBe("2026-09-28");
-  });
-
-  it("interval_days every 14 days (bi-weekly)", () => {
-    const dates = occurrenceDates(rule({ ruleType: "interval_days", intervalDays: 14, startDate: "2026-09-02" }), WIN.start, WIN.end);
-    expect(dates).toEqual(["2026-09-02", "2026-09-16", "2026-09-30"]);
-  });
-
-  it("interval_days skips dates before the anchor", () => {
-    const dates = occurrenceDates(rule({ ruleType: "interval_days", intervalDays: 5, startDate: "2026-09-10" }), "2026-09-01", "2026-09-20");
-    expect(dates).toEqual(["2026-09-10", "2026-09-15", "2026-09-20"]);
-  });
-
-  it("monthly_date day 15", () => {
-    const dates = occurrenceDates(rule({ ruleType: "monthly_date", dayOfMonth: 15, startDate: "2026-08-01" }), WIN.start, WIN.end);
-    expect(dates).toEqual(["2026-09-15"]);
-  });
-
-  it("monthly_date day 31 skips short months (Feb 30-style skip)", () => {
-    const dates = occurrenceDates(rule({ ruleType: "monthly_date", dayOfMonth: 31, startDate: "2026-01-01" }), "2026-01-01", "2026-04-30");
-    expect(dates).toEqual(["2026-01-31", "2026-03-31"]); // Feb/Apr have no 31st
-  });
-
-  it("monthly_weekday first Monday", () => {
-    const dates = occurrenceDates(rule({ ruleType: "monthly_weekday", monthWeek: 1, monthDow: 1, startDate: "2026-08-01" }), WIN.start, WIN.end);
-    expect(dates).toEqual(["2026-09-07"]);
-  });
-
-  it("monthly_weekday last Friday", () => {
-    const dates = occurrenceDates(rule({ ruleType: "monthly_weekday", monthWeek: -1, monthDow: 5, startDate: "2026-08-01" }), WIN.start, WIN.end);
-    expect(dates).toEqual(["2026-09-25"]);
-  });
-
-  it("monthly_weekday 3rd Tuesday across two months", () => {
-    const dates = occurrenceDates(rule({ ruleType: "monthly_weekday", monthWeek: 3, monthDow: 2, startDate: "2026-08-01" }), "2026-09-01", "2026-10-31");
-    expect(dates).toEqual(["2026-09-15", "2026-10-20"]);
-  });
-
-  it("empty / inverted window", () => {
-    expect(occurrenceDates(rule({ ruleType: "weekly_days", daysOfWeek: [1] }), "2026-09-10", "2026-09-01")).toEqual([]);
-  });
-
-  it("30-day boundary is inclusive", () => {
-    const dates = occurrenceDates(rule({ ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7] }), "2026-09-01", "2026-09-30");
-    expect(dates).toHaveLength(30);
+  it("storage strings are zero-padded and sort lexically", () => {
+    expect(templateDay(1)).toBe("01");
+    expect(templateDay(30)).toBe("30");
+    expect(["30", "02", "01"].sort()).toEqual(["01", "02", "30"]);
+    expect(templateDayNumber("07")).toBe(7);
   });
 });
 
-describe("date helpers", () => {
-  it("isoDow maps Mon=1 … Sun=7", () => {
-    expect(isoDow("2026-08-31")).toBe(1); // Monday
-    expect(isoDow("2026-09-06")).toBe(7); // Sunday
+describe("recurrence engine on the template (DATA_MODEL.md §7)", () => {
+  it("none → no occurrences", () => {
+    expect(occurrenceDays(rule({ ruleType: "none" }))).toEqual([]);
   });
 
-  it("addDaysISO crosses month boundaries", () => {
-    expect(addDaysISO("2026-08-31", 1)).toBe("2026-09-01");
-    expect(addDaysISO("2026-09-01", -1)).toBe("2026-08-31");
+  it("weekly_days daily → all 30 days", () => {
+    const days = occurrenceDays(rule({ ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7] }));
+    expect(days).toHaveLength(30);
+    expect(days[0]).toBe(1);
+    expect(days[29]).toBe(30);
+  });
+
+  it("weekly_days weekdays only", () => {
+    const days = occurrenceDays(
+      rule({ ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5] }),
+      1,
+      7,
+    );
+    expect(days).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("weekly_days Mon Wed Fri", () => {
+    const days = occurrenceDays(rule({ ruleType: "weekly_days", daysOfWeek: [1, 3, 5] }), 1, 14);
+    expect(days).toEqual([1, 3, 5, 8, 10, 12]);
+  });
+
+  it("interval_days every 3 days from Day 1", () => {
+    const days = occurrenceDays(rule({ ruleType: "interval_days", intervalDays: 3 }));
+    expect(days).toEqual([1, 4, 7, 10, 13, 16, 19, 22, 25, 28]);
+  });
+
+  it("interval_days every 14 days (bi-weekly)", () => {
+    const days = occurrenceDays(rule({ ruleType: "interval_days", intervalDays: 14 }));
+    expect(days).toEqual([1, 15, 29]);
+  });
+
+  it("monthly_date = a specific template day", () => {
+    const days = occurrenceDays(rule({ ruleType: "monthly_date", dayOfMonth: 15 }));
+    expect(days).toEqual([15]);
+  });
+
+  it("monthly_date beyond the template matches nothing", () => {
+    expect(occurrenceDays(rule({ ruleType: "monthly_date", dayOfMonth: 31 }))).toEqual([]);
+  });
+
+  it("monthly_weekday is not representable → matches nothing", () => {
+    expect(
+      occurrenceDays(rule({ ruleType: "monthly_weekday", monthWeek: 1, monthDow: 1 })),
+    ).toEqual([]);
+  });
+
+  it("partial windows", () => {
+    const days = occurrenceDays(rule({ ruleType: "weekly_days", daysOfWeek: [1] }), 2, 9);
+    expect(days).toEqual([8]); // Day 1 excluded, Day 8 is the next Monday
+    expect(occurrenceDays(rule({ ruleType: "interval_days", intervalDays: 5 }), 12, 20)).toEqual([
+      16,
+    ]);
   });
 });
 
@@ -119,10 +115,9 @@ describe("describeRule labels", () => {
     expect(describeRule(rule({ ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5] }))).toBe("Weekdays");
     expect(describeRule(rule({ ruleType: "weekly_days", daysOfWeek: [1, 3, 5] }))).toBe("Mon Wed Fri");
     expect(describeRule(rule({ ruleType: "interval_days", intervalDays: 14 }))).toBe("Every 14d");
-    expect(describeRule(rule({ ruleType: "monthly_date", dayOfMonth: 21 }))).toBe("Monthly on the 21st");
-    expect(describeRule(rule({ ruleType: "monthly_date", dayOfMonth: 11 }))).toBe("Monthly on the 11th");
-    expect(describeRule(rule({ ruleType: "monthly_date", dayOfMonth: 2 }))).toBe("Monthly on the 2nd");
-    expect(describeRule(rule({ ruleType: "monthly_weekday", monthWeek: 1, monthDow: 1 }))).toBe("1st Mon of month");
-    expect(describeRule(rule({ ruleType: "monthly_weekday", monthWeek: -1, monthDow: 5 }))).toBe("Last Fri of month");
+    expect(describeRule(rule({ ruleType: "monthly_date", dayOfMonth: 15 }))).toBe("Day 15 of template");
+    expect(describeRule(rule({ ruleType: "monthly_weekday", monthWeek: 1, monthDow: 1 }))).toBe(
+      "Custom (not in template)",
+    );
   });
 });

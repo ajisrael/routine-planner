@@ -60,6 +60,7 @@ describe("health + snapshot", () => {
     expect(snap.users).toEqual([]);
     expect(snap.categories).toEqual([]);
     expect(snap.tasks).toEqual([]);
+    expect(snap.events).toEqual([]);
   });
 });
 
@@ -99,7 +100,7 @@ describe("task + recurrence + events lifecycle", () => {
     personId = (res.json as { id: number }).id;
   });
 
-  it("creates a daily task with reference time 16:00 → generates 30 occurrences", async () => {
+  it("creates a daily task with reference time 16:00 → generates 30 template occurrences", async () => {
     const res = await call("POST", "/api/tasks", {
       name: "Homework",
       durationMinutes: 45,
@@ -107,11 +108,16 @@ describe("task + recurrence + events lifecycle", () => {
       recurrence: { ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7], refStartMinute: 960 },
     });
     expect(res.status).toBe(201);
-    const body = res.json as { task: { id: number }; events: Array<{ startMinute: number; endMinute: number }> };
+    const body = res.json as {
+      task: { id: number };
+      events: Array<{ startMinute: number; endMinute: number; eventDate: string }>;
+    };
     taskId = body.task.id;
     expect(body.events.length).toBe(30);
     expect(body.events[0]!.startMinute).toBe(960);
     expect(body.events[0]!.endMinute).toBe(1005);
+    expect(body.events[0]!.eventDate).toBe("01");
+    expect(body.events[29]!.eventDate).toBe("30");
   });
 
   it("dragging a recurring task into a slot adds one occurrence", async () => {
@@ -123,6 +129,12 @@ describe("task + recurrence + events lifecycle", () => {
     expect(ok.status).toBe(201);
     const after = ((await call("GET", "/api/snapshot")).json as { events: unknown[] }).events.length;
     expect(after).toBe(before + 1);
+  });
+
+  it("rejects real dates and days outside the template", async () => {
+    expect((await call("POST", "/api/events", { taskId, eventDate: "2026-09-05", startMinute: 600 })).status).toBe(400);
+    expect((await call("POST", "/api/events", { taskId, eventDate: "31", startMinute: 600 })).status).toBe(400);
+    expect((await call("POST", "/api/events", { taskId, eventDate: "00", startMinute: 600 })).status).toBe(400);
   });
 
   it("duplicate (task, date, start) is rejected with 409", async () => {

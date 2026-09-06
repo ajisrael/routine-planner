@@ -10,7 +10,7 @@ const { db } = await import("../src/db.js");
 const { regenerateForRule, computeReference } = await import("../src/services/regenerate.js");
 const { syncOccurrenceToSiblings } = await import("../src/services/syncActions.js");
 const { broadcaster } = await import("../src/services/broadcaster.js");
-const { occurrenceDates } = await import("@planner/shared");
+const { occurrenceDays } = await import("@planner/shared");
 
 /** Insert a task + rule and return ids. */
 function makeTask(name: string, duration = 60, ruleType: string | null = null): { taskId: number; ruleId: number | null } {
@@ -57,28 +57,23 @@ describe("regenerate service", () => {
   });
 
   it("computeReference prefers an existing occurrence, else 09:00", async () => {
-    const { currentWindow } = await import("../src/services/rows.js");
-    const win = currentWindow();
     const { taskId } = makeTask("Ref", 60, null);
     expect(computeReference(taskId)).toEqual({ start: 540, end: 600 });
-    db.prepare("INSERT INTO scheduled_events (task_id, rule_id, event_date, start_minute, end_minute) VALUES (?, NULL, ?, 1020, 1080)").run(taskId, win.end);
+    db.prepare("INSERT INTO scheduled_events (task_id, rule_id, event_date, start_minute, end_minute) VALUES (?, NULL, '30', 1020, 1080)").run(taskId);
     expect(computeReference(taskId)).toEqual({ start: 1020, end: 1080 });
     expect(computeReference(taskId, 300)).toEqual({ start: 300, end: 360 });
   });
 });
 
 describe("sync service (DATA_MODEL.md §5.5)", () => {
-  it("sync-to-all updates every sibling; future only >= anchor date", async () => {
-    const { addDaysISO } = await import("@planner/shared");
-    const { todayISO } = await import("../src/services/rows.js");
-    const today = todayISO();
+  it("sync-to-all updates every sibling; future only >= anchor day", async () => {
     const { taskId } = makeTask("SyncMe", 30, null);
     const ins = db.prepare(
       "INSERT INTO scheduled_events (task_id, rule_id, event_date, start_minute, end_minute) VALUES (?, NULL, ?, ?, ?)",
     );
-    const e1 = ins.run(taskId, addDaysISO(today, -1), 480, 510);
-    const e2 = ins.run(taskId, addDaysISO(today, 0), 600, 630);
-    const e3 = ins.run(taskId, addDaysISO(today, 5), 720, 750);
+    const e1 = ins.run(taskId, "01", 480, 510);
+    const e2 = ins.run(taskId, "05", 600, 630);
+    const e3 = ins.run(taskId, "10", 720, 750);
 
     const changed = syncOccurrenceToSiblings(Number(e1.lastInsertRowid), "future", broadcaster);
     expect(changed.map((c) => c.id).sort()).toEqual([Number(e2.lastInsertRowid), Number(e3.lastInsertRowid)].sort());
@@ -134,12 +129,10 @@ describe("broadcaster", () => {
   });
 });
 
-describe("occurrenceDates sanity through services", () => {
-  it("monthly_date skips missing days", () => {
-    expect(occurrenceDates(
-      { ruleType: "monthly_date", daysOfWeek: null, intervalDays: null, dayOfMonth: 30, monthWeek: null, monthDow: null, startDate: "2026-01-30" },
-      "2026-02-01",
-      "2026-03-31",
-    )).toEqual(["2026-03-30"]);
+describe("occurrenceDays sanity through services", () => {
+  it("monthly_date beyond the template matches nothing", () => {
+    expect(occurrenceDays(
+      { ruleType: "monthly_date", daysOfWeek: null, intervalDays: null, dayOfMonth: 31, monthWeek: null, monthDow: null, startDate: "01" },
+    )).toEqual([]);
   });
 });
