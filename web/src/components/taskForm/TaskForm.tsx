@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { RecurrenceRuleType, ScheduledEvent, Task } from "@planner/shared";
-import { describeRule, occurrenceDates } from "@planner/shared";
+import { describeRule, occurrenceDays, TEMPLATE_DAYS } from "@planner/shared";
 import type { RuleShape } from "@planner/shared";
-import { windowEnd } from "../../store";
 import { usePlannerStore, assigneesOfTask, eventsOfTask } from "../../store";
 import type { TaskRulePayload } from "../../api/client";
 import { toast } from "../../store/toasts";
-import { fmtTime, parseTime, todayISO, dateFromISO } from "../../lib/dates";
+import { fmtTime, parseTime } from "../../lib/dates";
 import { CategoryPickerDialog } from "../CategoryPickerDialog";
 import { AssigneePickerDialog } from "../AssigneePickerDialog";
 import { AvatarStack } from "../Avatar";
@@ -30,15 +29,15 @@ interface FormState {
   notes: string;
 }
 
-function rulePayload(s: FormState, startDate: string): RuleShape & { refStartMinute: number | null } {
+function rulePayload(s: FormState): RuleShape & { refStartMinute: number | null } {
   return {
     ruleType: s.ruleType,
     daysOfWeek: s.ruleType === "weekly_days" ? DOW_ORDER.filter((d) => s.daysOfWeek.has(d)) : null,
     intervalDays: s.ruleType === "interval_days" ? Math.max(1, Math.round(s.intervalDays)) : null,
     dayOfMonth: s.ruleType === "monthly_date" ? s.dayOfMonth : null,
-    monthWeek: s.ruleType === "monthly_weekday" ? s.monthWeek : null,
-    monthDow: s.ruleType === "monthly_weekday" ? s.monthDow : null,
-    startDate,
+    monthWeek: null,
+    monthDow: null,
+    startDate: "01",
     refStartMinute: s.ruleType === "none" ? null : parseTime(s.refTime),
   };
 }
@@ -85,7 +84,7 @@ export function TaskForm({
     }
     const rule = store.recurrenceRules.find((r) => r.taskId === task.id);
     const evs = eventsOfTask(task.id);
-    const first = evs.filter((e) => e.eventDate >= todayISO()).sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
+    const first = [...evs].sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
     const refTime = fmtTime(first?.startMinute ?? 540);
     setForm({
       name: task.name,
@@ -104,34 +103,15 @@ export function TaskForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task?.id]);
 
-  const preview = useMemo((): { count: number; next: string[]; label: string } => {
-    if (form.ruleType === "none") return { count: 0, next: [], label: "One-off — schedule it by hand on the calendar." };
-    const dates = occurrenceDates(
-      {
-        ruleType: form.ruleType,
-        daysOfWeek: DOW_ORDER.filter((d) => form.daysOfWeek.has(d)),
-        intervalDays: form.intervalDays,
-        dayOfMonth: form.dayOfMonth,
-        monthWeek: form.monthWeek,
-        monthDow: form.monthDow,
-        startDate: todayISO(),
-      },
-      todayISO(),
-      windowEnd(),
-    );
+  const preview = useMemo((): string => {
+    if (form.ruleType === "none") return "One-off — schedule it by hand on the calendar.";
+    const days = occurrenceDays(rulePayload(form));
     const at = ` at ${form.refTime}`;
-    if (dates.length === 0) {
-      return { count: 0, next: [], label: `Occurs ${describeRule(rulePayload(form, todayISO()))}${at} — no dates in the 30-day window.` };
+    if (days.length === 0) {
+      return `Occurs ${describeRule(rulePayload(form))}${at} — no matching days in the template.`;
     }
-    const next = dates.slice(0, 3).map((d) => {
-      const dt = dateFromISO(d);
-      return `${dt.toLocaleDateString(undefined, { weekday: "short" })} ${dt.getDate()}/${dt.getMonth() + 1}`;
-    });
-    return {
-      count: dates.length,
-      next,
-      label: `Occurs ${describeRule(rulePayload(form, todayISO()))}${at} — next: ${next.join(", ")} · ${dates.length} occurrences generated for the 30-day window.`,
-    };
+    const next = days.slice(0, 5).map((d) => `Day ${d}`);
+    return `Occurs ${describeRule(rulePayload(form))}${at} — ${days.length} days in the template: ${next.join(", ")}${days.length > next.length ? ", …" : ""}.`;
   }, [form]);
 
   if (!open) return null;
@@ -161,7 +141,7 @@ export function TaskForm({
           notes: form.notes || null,
           categoryId: form.categoryId,
           assigneeIds: [...form.assignees],
-          recurrence: form.ruleType === "none" ? undefined : rulePayload(form, todayISO()),
+          recurrence: form.ruleType === "none" ? undefined : rulePayload(form),
         });
         toast.success(`“${form.name.trim()}” added to the library`);
       } else {
@@ -183,7 +163,7 @@ export function TaskForm({
           });
         }
         const existing = store.recurrenceRules.find((r) => r.taskId === task.id);
-        const next = rulePayload(form, existing?.startDate ?? todayISO());
+        const next = rulePayload(form);
         const existingPayload: TaskRulePayload | null = existing
           ? {
               ruleType: existing.ruleType,
@@ -283,8 +263,7 @@ export function TaskForm({
                 <option value="none">One-off (no repeat)</option>
                 <option value="weekly_days">On days of week</option>
                 <option value="interval_days">Every N days</option>
-                <option value="monthly_date">On day of month</option>
-                <option value="monthly_weekday">Nth weekday of month</option>
+                <option value="monthly_date">On a specific template day</option>
               </select>
             </fieldset>
           </div>
@@ -333,48 +312,19 @@ export function TaskForm({
               )}
               {form.ruleType === "monthly_date" && (
                 <label className="flex items-center gap-2 text-sm">
-                  Day of month
+                  Template day
                   <input
                     type="number"
                     className="input input-sm w-20"
                     min={1}
-                    max={31}
+                    max={TEMPLATE_DAYS}
                     value={form.dayOfMonth}
-                    onChange={(e) => set("dayOfMonth", Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
+                    onChange={(e) => set("dayOfMonth", Math.min(TEMPLATE_DAYS, Math.max(1, Number(e.target.value) || 1)))}
                   />
-                  <span className="opacity-50">(skipped when the day doesn't exist, e.g. Feb 30)</span>
+                  <span className="opacity-50">(Day {form.dayOfMonth} of the 30-day template)</span>
                 </label>
               )}
-              {form.ruleType === "monthly_weekday" && (
-                <div className="flex items-center gap-2 text-sm">
-                  <select
-                    className="select select-sm"
-                    value={form.monthWeek}
-                    onChange={(e) => set("monthWeek", Number(e.target.value))}
-                    aria-label="Which week"
-                  >
-                    <option value={1}>1st</option>
-                    <option value={2}>2nd</option>
-                    <option value={3}>3rd</option>
-                    <option value={4}>4th</option>
-                    <option value={-1}>Last</option>
-                  </select>
-                  <select
-                    className="select select-sm"
-                    value={form.monthDow}
-                    onChange={(e) => set("monthDow", Number(e.target.value))}
-                    aria-label="Weekday"
-                  >
-                    {DOW_LONG.map((label, i) => (
-                      <option key={label} value={i + 1}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                  <span>of each month</span>
-                </div>
-              )}
-              <p className="text-xs font-medium text-primary">{preview.label}</p>
+              <p className="text-xs font-medium text-primary">{preview}</p>
             </div>
           )}
 
@@ -463,7 +413,7 @@ export function TaskForm({
           </div>
           <p className="text-[11px] opacity-50">
             Instance-first: moving one occurrence never touches its siblings. Changing frequency regenerates
-            occurrences for the 30-day window.
+            occurrences across the 30-day template.
           </p>
         </form>
       </div>
