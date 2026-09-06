@@ -106,23 +106,27 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
                 </button>
               </form>
 
-              <div className="flex items-center gap-3 text-xs opacity-50">
-                <div className="divider my-0 flex-1" /> quick login <div className="divider my-0 flex-1" />
-              </div>
+              {loginUsers.length > 0 && (
+                <>
+                  <div className="flex items-center gap-3 text-xs opacity-50">
+                    <div className="divider my-0 flex-1" /> quick login <div className="divider my-0 flex-1" />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {loginUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    className="btn btn-outline justify-start gap-2"
-                    onClick={() => void login(u.username ?? u.displayName)}
-                    disabled={busy}
-                  >
-                    <Avatar user={u} />
-                    {u.displayName}
-                  </button>
-                ))}
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {loginUsers.map((u) => (
+                      <button
+                        key={u.id}
+                        className="btn btn-outline justify-start gap-2"
+                        onClick={() => void login(u.username ?? u.displayName)}
+                        disabled={busy}
+                      >
+                        <Avatar user={u} />
+                        {u.displayName}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <p className="text-xs opacity-50 flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-success" />
@@ -131,7 +135,9 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
             </div>
           </div>
           <p className="text-center text-xs opacity-40 mt-4">
-            Typing an unknown name creates a new planning account.
+            {loginUsers.length === 0
+              ? "No planning accounts yet — typing your name creates the first one."
+              : "Typing an unknown name creates a new planning account."}
           </p>
         </div>
       </div>
