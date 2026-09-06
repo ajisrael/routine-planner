@@ -7,8 +7,9 @@ import { usePlannerStore, assigneesOfTask, eventsOfTask } from "../../store";
 import type { TaskRulePayload } from "../../api/client";
 import { toast } from "../../store/toasts";
 import { fmtTime, parseTime, todayISO, dateFromISO } from "../../lib/dates";
-import { personColor } from "../../lib/colors";
-import { Avatar } from "../Avatar";
+import { CategoryPickerDialog } from "../CategoryPickerDialog";
+import { AssigneePickerDialog } from "../AssigneePickerDialog";
+import { AvatarStack } from "../Avatar";
 
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 7];
 const DOW_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
@@ -70,6 +71,11 @@ export function TaskForm({
   const store = usePlannerStore();
   const [form, setForm] = useState<FormState>(blankForm());
   const [busy, setBusy] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
+
+  const currentCategory = form.categoryId != null ? categories.find((c) => c.id === form.categoryId) : undefined;
+  const pickedUsers = users.filter((u) => form.assignees.has(u.id));
 
   useEffect(() => {
     if (!open) return;
@@ -139,14 +145,6 @@ export function TaskForm({
       if (days.has(d)) days.delete(d);
       else days.add(d);
       return { ...f, daysOfWeek: days };
-    });
-
-  const toggleAssignee = (id: number): void =>
-    setForm((f) => {
-      const set_ = new Set(f.assignees);
-      if (set_.has(id)) set_.delete(id);
-      else set_.add(id);
-      return { ...f, assignees: set_ };
     });
 
   const save = async (): Promise<void> => {
@@ -235,8 +233,9 @@ export function TaskForm({
     setForm((f) => ({ ...f, duration: Math.max(15, Math.min(240, f.duration + delta)) }));
 
   return (
-    <dialog className="modal modal-open" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-box max-w-lg">
+    <>
+      <dialog className="modal modal-open" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="modal-box max-w-lg">
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {
@@ -260,13 +259,13 @@ export function TaskForm({
           </fieldset>
 
           <div className="grid grid-cols-2 gap-3">
-            <fieldset className="fieldset p-0 gap-2">
+            <fieldset className="fieldset p-0 gap-2 min-w-0">
               <legend className="fieldset-legend text-xs">Duration * (15-min steps)</legend>
               <div className="join w-full items-stretch">
                 <button type="button" className="join-item btn btn-sm" onClick={() => stepDuration(-15)}>
                   −
                 </button>
-                <span className="join-item flex-1 grid place-items-center bg-base-200 text-sm font-semibold min-h-8">
+                <span className="join-item flex-1 grid place-items-center bg-base-200 text-sm font-semibold min-h-8 border-0 outline-none">
                   {form.duration} min
                 </span>
                 <button type="button" className="join-item btn btn-sm" onClick={() => stepDuration(15)}>
@@ -274,53 +273,10 @@ export function TaskForm({
                 </button>
               </div>
             </fieldset>
-            <fieldset className="fieldset p-0 gap-2">
-              <legend className="fieldset-legend text-xs">Category</legend>
-              <select
-                className="select select-sm w-full h-8"
-                value={form.categoryId ?? ""}
-                onChange={(e) => set("categoryId", e.target.value === "" ? null : Number(e.target.value))}
-              >
-                <option value="">No category</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </fieldset>
-          </div>
-
-          <fieldset className="fieldset p-0 gap-2">
-            <legend className="fieldset-legend text-xs">
-              Assignees (optional — shared people drive conflict warnings)
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {users.map((u) => {
-                const on = form.assignees.has(u.id);
-                return (
-                  <button
-                    type="button"
-                    key={u.id}
-                    className={`assign-pick text-sm${on ? " on" : ""}`}
-                    style={{ ["--ppl-color" as string]: personColor(u.id) } as React.CSSProperties}
-                    onClick={() => toggleAssignee(u.id)}
-                    aria-pressed={on}
-                  >
-                    <Avatar user={u} />
-                    <span className="font-medium">{u.displayName}</span>
-                    {!u.isLoginUser && <span className="badge badge-xs badge-ghost">persona</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          <div className="grid grid-cols-2 gap-3">
-            <fieldset className="fieldset p-0 gap-2">
+            <fieldset className="fieldset p-0 gap-2 min-w-0">
               <legend className="fieldset-legend text-xs">Frequency</legend>
               <select
-                className="select w-full"
+                className="select select-sm w-full h-8"
                 value={form.ruleType}
                 onChange={(e) => set("ruleType", e.target.value as RecurrenceRuleType)}
               >
@@ -331,97 +287,137 @@ export function TaskForm({
                 <option value="monthly_weekday">Nth weekday of month</option>
               </select>
             </fieldset>
-            {form.ruleType !== "none" && (
-              <fieldset className="fieldset p-0 gap-2">
-                <legend className="fieldset-legend text-xs">Reference time</legend>
+          </div>
+
+          {form.ruleType !== "none" && (
+            <div className="flex flex-col gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-xs opacity-60 shrink-0">Reference time</span>
                 <input
                   type="time"
-                  className="input w-full"
+                  className="input input-sm w-28"
                   value={form.refTime}
                   step={900}
                   onChange={(e) => set("refTime", e.target.value)}
                 />
-              </fieldset>
-            )}
-          </div>
-
-          {form.ruleType === "weekly_days" && (
-            <div className="flex gap-1" role="group" aria-label="Days of week">
-              {DOW_ORDER.map((d, i) => (
-                <button
-                  type="button"
-                  key={d}
-                  className={`btn btn-sm btn-square${form.daysOfWeek.has(d) ? " btn-primary" : ""}`}
-                  onClick={() => toggleDay(d)}
-                  aria-pressed={form.daysOfWeek.has(d)}
-                  title={DOW_LONG[i]}
-                >
-                  {DOW_SHORT[i]}
-                </button>
-              ))}
+              </label>
+              {form.ruleType === "weekly_days" && (
+                <div className="flex gap-1" role="group" aria-label="Days of week">
+                  {DOW_ORDER.map((d, i) => (
+                    <button
+                      type="button"
+                      key={d}
+                      className={`btn btn-sm btn-square${form.daysOfWeek.has(d) ? " btn-primary" : ""}`}
+                      onClick={() => toggleDay(d)}
+                      aria-pressed={form.daysOfWeek.has(d)}
+                      title={DOW_LONG[i]}
+                    >
+                      {DOW_SHORT[i]}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {form.ruleType === "interval_days" && (
+                <label className="flex items-center gap-2 text-sm">
+                  Every
+                  <input
+                    type="number"
+                    className="input input-sm w-20"
+                    min={1}
+                    max={365}
+                    value={form.intervalDays}
+                    onChange={(e) => set("intervalDays", Math.max(1, Number(e.target.value) || 1))}
+                  />
+                  days
+                </label>
+              )}
+              {form.ruleType === "monthly_date" && (
+                <label className="flex items-center gap-2 text-sm">
+                  Day of month
+                  <input
+                    type="number"
+                    className="input input-sm w-20"
+                    min={1}
+                    max={31}
+                    value={form.dayOfMonth}
+                    onChange={(e) => set("dayOfMonth", Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
+                  />
+                  <span className="opacity-50">(skipped when the day doesn't exist, e.g. Feb 30)</span>
+                </label>
+              )}
+              {form.ruleType === "monthly_weekday" && (
+                <div className="flex items-center gap-2 text-sm">
+                  <select
+                    className="select select-sm"
+                    value={form.monthWeek}
+                    onChange={(e) => set("monthWeek", Number(e.target.value))}
+                    aria-label="Which week"
+                  >
+                    <option value={1}>1st</option>
+                    <option value={2}>2nd</option>
+                    <option value={3}>3rd</option>
+                    <option value={4}>4th</option>
+                    <option value={-1}>Last</option>
+                  </select>
+                  <select
+                    className="select select-sm"
+                    value={form.monthDow}
+                    onChange={(e) => set("monthDow", Number(e.target.value))}
+                    aria-label="Weekday"
+                  >
+                    {DOW_LONG.map((label, i) => (
+                      <option key={label} value={i + 1}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <span>of each month</span>
+                </div>
+              )}
+              <p className="text-xs font-medium text-primary">{preview.label}</p>
             </div>
           )}
-          {form.ruleType === "interval_days" && (
-            <label className="flex items-center gap-2 text-sm">
-              Every
-              <input
-                type="number"
-                className="input input-sm w-20"
-                min={1}
-                max={365}
-                value={form.intervalDays}
-                onChange={(e) => set("intervalDays", Math.max(1, Number(e.target.value) || 1))}
-              />
-              days
-            </label>
-          )}
-          {form.ruleType === "monthly_date" && (
-            <label className="flex items-center gap-2 text-sm">
-              Day of month
-              <input
-                type="number"
-                className="input input-sm w-20"
-                min={1}
-                max={31}
-                value={form.dayOfMonth}
-                onChange={(e) => set("dayOfMonth", Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
-              />
-              <span className="opacity-50">(skipped when the day doesn't exist, e.g. Feb 30)</span>
-            </label>
-          )}
-          {form.ruleType === "monthly_weekday" && (
-            <div className="flex items-center gap-2 text-sm">
-              <select
-                className="select select-sm"
-                value={form.monthWeek}
-                onChange={(e) => set("monthWeek", Number(e.target.value))}
-                aria-label="Which week"
-              >
-                <option value={1}>1st</option>
-                <option value={2}>2nd</option>
-                <option value={3}>3rd</option>
-                <option value={4}>4th</option>
-                <option value={-1}>Last</option>
-              </select>
-              <select
-                className="select select-sm"
-                value={form.monthDow}
-                onChange={(e) => set("monthDow", Number(e.target.value))}
-                aria-label="Weekday"
-              >
-                {DOW_LONG.map((label, i) => (
-                  <option key={label} value={i + 1}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <span>of each month</span>
-            </div>
-          )}
 
-          <p className={`text-xs font-medium ${form.ruleType === "none" ? "opacity-60" : "text-primary"}`}>
-            {preview.label}
-          </p>
+          <fieldset className="fieldset p-0 gap-2 min-w-0">
+            <legend className="fieldset-legend text-xs">
+              Assignees (optional — shared people drive conflict warnings)
+            </legend>
+            <button
+              type="button"
+              className="btn btn-sm w-full h-8 justify-start gap-2 min-w-0 font-normal"
+              onClick={() => setAssigneePickerOpen(true)}
+              aria-haspopup="dialog"
+            >
+              {pickedUsers.length > 0 ? (
+                <AvatarStack users={pickedUsers} max={5} />
+              ) : (
+                <span className="opacity-60">No assignees</span>
+              )}
+              <span className="ml-auto opacity-40 shrink-0">▾</span>
+            </button>
+          </fieldset>
+
+          <fieldset className="fieldset p-0 gap-2 min-w-0">
+            <legend className="fieldset-legend text-xs">Category</legend>
+            <button
+              type="button"
+              className="btn btn-sm w-full h-8 justify-start gap-2 min-w-0 font-normal"
+              onClick={() => setPickerOpen(true)}
+              aria-haspopup="dialog"
+            >
+              <span
+                className="inline-block w-3.5 h-3.5 rounded-full shrink-0"
+                style={{
+                  background: currentCategory?.color ?? "var(--color-base-content)",
+                  opacity: currentCategory ? 1 : 0.3,
+                }}
+              />
+              <span className={`truncate min-w-0 text-left${currentCategory ? "" : " opacity-60"}`}>
+                {currentCategory?.name ?? "No category"}
+              </span>
+              <span className="ml-auto opacity-40 shrink-0">▾</span>
+            </button>
+          </fieldset>
 
           <fieldset className="fieldset p-0 gap-2">
             <legend className="fieldset-legend text-xs">Notes</legend>
@@ -471,7 +467,24 @@ export function TaskForm({
           </p>
         </form>
       </div>
-    </dialog>
+      </dialog>
+      <CategoryPickerDialog
+        open={pickerOpen}
+        currentId={form.categoryId}
+        onClose={(picked) => {
+          setPickerOpen(false);
+          if (picked !== undefined) set("categoryId", picked);
+        }}
+      />
+      <AssigneePickerDialog
+        open={assigneePickerOpen}
+        currentUserIds={[...form.assignees]}
+        onClose={(picked) => {
+          setAssigneePickerOpen(false);
+          if (picked !== undefined) set("assignees", new Set(picked));
+        }}
+      />
+    </>
   );
 }
 
