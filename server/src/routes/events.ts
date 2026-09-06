@@ -5,6 +5,13 @@ import { db } from "../db.js";
 import { broadcaster } from "../services/broadcaster.js";
 import { syncOccurrenceToSiblings, type SyncScope } from "../services/syncActions.js";
 import { mapEvent } from "../services/rows.js";
+import {
+  broadcastRegeneration,
+  currentReferenceStart,
+  regenerateForRule,
+  ruleCoversTemplateDay,
+  ruleHasOccurrences,
+} from "../services/regenerate.js";
 
 export const eventsRouter = Router();
 
@@ -68,20 +75,51 @@ eventsRouter.post("/", (req: Request, res: Response) => {
   endMinute = clampEnd(endMinute);
   if (endMinute <= startMinute) return bad(res, "endMinute must be greater than startMinute");
 
-  // A recurring task's drops join its rule (future regeneration covers them);
-  // one-off drops stay rule-less (§5.2).
+  // Recurring tasks: the placement DEFINES the rule's time. Dropping at a new
+  // time re-anchors every generated occurrence to it; the dropped instance is
+  // kept detached (rule-less) when it is not a rule day so it survives
+  // regeneration (instance-first, §5.2/§5.3). Dropping at the current
+  // reference time adds a plain instance, as before.
   const rule = db
     .prepare(
       "SELECT id FROM recurrence_rules WHERE task_id = ? AND rule_type != 'none'",
     )
     .get(taskId) as { id: number } | undefined;
 
+  if (rule) {
+    const reanchor =
+      !ruleHasOccurrences(rule.id) || startMinute !== currentReferenceStart(taskId, rule.id);
+
+    if (reanchor && ruleCoversTemplateDay(rule.id, templateDayNumber(eventDate))) {
+      // The dropped day is a rule day — regeneration covers it entirely.
+      broadcastRegeneration(broadcaster, regenerateForRule(rule.id, clampStart(startMinute), endMinute));
+      const fresh = db
+        .prepare(
+          "SELECT * FROM scheduled_events WHERE task_id = ? AND event_date = ? AND start_minute = ?",
+        )
+        .get(taskId, eventDate, clampStart(startMinute)) as Record<string, unknown> | undefined;
+      if (!fresh) {
+        res.status(409).json({ error: "an occurrence of this task already starts at this time" });
+        return;
+      }
+      res.status(201).json(mapEvent(fresh));
+      return;
+    }
+
+    if (reanchor) {
+      // Non-rule day at a new time: keep the drop detached, re-anchor the rest.
+      const inserted = insertEvent(taskId, null, eventDate, clampStart(startMinute), endMinute);
+      broadcastRegeneration(broadcaster, regenerateForRule(rule.id, clampStart(startMinute), endMinute));
+      res.status(201).json(mapEvent(getEvent(Number(inserted.lastInsertRowid))!));
+      return;
+    }
+  }
+
   try {
-    const info = db
-      .prepare(
-        "INSERT INTO scheduled_events (task_id, rule_id, event_date, start_minute, end_minute) VALUES (?, ?, ?, ?, ?)",
-      )
-      .run(taskId, rule?.id ?? null, eventDate, clampStart(startMinute), endMinute);
+    // Attach the rule only when the day is a rule day — a same-time extra on
+    // a non-rule day stays detached so regeneration never wipes it (§5.2).
+    const attach = rule && ruleCoversTemplateDay(rule.id, templateDayNumber(eventDate));
+    const info = insertEvent(taskId, attach ? rule!.id : null, eventDate, clampStart(startMinute), endMinute);
     const event = mapEvent(getEvent(Number(info.lastInsertRowid))!);
     broadcaster.upsert("events", event.id, event);
     res.status(201).json(event);
@@ -93,6 +131,19 @@ eventsRouter.post("/", (req: Request, res: Response) => {
     throw e;
   }
 });
+
+const insertEvent = (
+  taskId: number,
+  ruleId: number | null,
+  eventDate: string,
+  startMinute: number,
+  endMinute: number,
+) =>
+  db
+    .prepare(
+      "INSERT INTO scheduled_events (task_id, rule_id, event_date, start_minute, end_minute) VALUES (?, ?, ?, ?, ?)",
+    )
+    .run(taskId, ruleId, eventDate, startMinute, endMinute);
 
 // PUT /api/events/:id — move / resize one occurrence (§5.4)
 eventsRouter.put("/:id", (req: Request, res: Response) => {

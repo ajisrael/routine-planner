@@ -102,6 +102,42 @@ export function regenerateForRule(
   return regenerateTx(ruleId, rule.task_id, referenceStartMinute, referenceEndMinute);
 }
 
+/** Does the rule generate an occurrence on this template day? */
+export function ruleCoversTemplateDay(ruleId: number, day: number): boolean {
+  const rule = db.prepare("SELECT * FROM recurrence_rules WHERE id = ?").get(ruleId) as
+    | Record<string, unknown>
+    | undefined;
+  if (!rule) return false;
+  return occurrenceDays(
+    {
+      ruleType: rule.rule_type as never,
+      daysOfWeek: rule.days_of_week ? (JSON.parse(rule.days_of_week as string) as number[]) : null,
+      intervalDays: (rule.interval_days as number | null) ?? null,
+      dayOfMonth: (rule.day_of_month as number | null) ?? null,
+      monthWeek: (rule.month_week as number | null) ?? null,
+      monthDow: (rule.month_dow as number | null) ?? null,
+      startDate: "01",
+    },
+    day,
+    day,
+  ).length > 0;
+}
+
+/** The start minute the rule's occurrences were last generated at. */
+export function currentReferenceStart(taskId: number, ruleId: number): number {
+  const row = db
+    .prepare("SELECT start_minute FROM scheduled_events WHERE task_id = ? AND rule_id = ? LIMIT 1")
+    .get(taskId, ruleId) as { start_minute: number } | undefined;
+  return row?.start_minute ?? DEFAULT_START_MINUTE;
+}
+
+/** Whether the rule has any generated occurrences at all. */
+export function ruleHasOccurrences(ruleId: number): boolean {
+  return (
+    (db.prepare("SELECT COUNT(*) AS n FROM scheduled_events WHERE rule_id = ?").get(ruleId) as { n: number }).n > 0
+  );
+}
+
 /** Broadcast helper: emit the deltas a regeneration produced. */
 export function broadcastRegeneration(
   broadcast: Broadcaster,
