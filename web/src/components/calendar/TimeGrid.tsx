@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { ScheduledEvent, Task } from "@planner/shared";
 import { SLOT_MINUTES } from "@planner/shared";
 import { usePlannerStore, categoryById } from "../../store";
-import { fmtTime, nowMinutes, shortDayLabel, todayISO } from "../../lib/dates";
+import { dayDowLabel, dayNumber, fmtTime } from "../../lib/dates";
 import { AvatarStack } from "../Avatar";
 import {
   START_HOUR,
@@ -50,7 +50,6 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
     onEventContextMenu,
   } = props;
   const single = dates.length === 1;
-  const today = todayISO();
 
   const byDate = useMemo(() => {
     const m = new Map<string, ScheduledEvent[]>();
@@ -59,43 +58,32 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
     return m;
   }, [dates, events]);
 
-  const [now, setNow] = useState(nowMinutes());
-  useEffect(() => {
-    const t = window.setInterval(() => setNow(nowMinutes()), 60_000);
-    return () => window.clearInterval(t);
-  }, []);
-
-  // The window is a full 24h, but events may legally end later (server
-  // clamps end_minute to 1440 = exactly midnight, already covered). The grid
-  // still sizes dynamically so blocks never overflow the scroll container.
+  // Full 24h window; grows if an event somehow ends past midnight.
   const lastHour = Math.max(END_HOUR, ...events.map((e) => Math.ceil(e.endMinute / 60)));
   const gridHeight = (lastHour - START_HOUR) * HOUR_HEIGHT;
+  const columns = `56px repeat(${dates.length}, minmax(148px, 1fr))`;
 
   return (
     // Fixed "window": the card constrains the height; this is the scroll
     // container. Day headers stay pinned on top, hour labels pinned left.
     <div className="lib-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-base-content/10">
       <div style={{ minWidth: single ? undefined : 900 }}>
-        <div className={`plan-grid sticky top-0 z-20 bg-base-100${single ? " single" : ""}`}>
+        <div
+          className="plan-grid sticky top-0 z-20 bg-base-100"
+          style={{ gridTemplateColumns: columns }}
+        >
           <div className="gutter-spacer" />
-          {dates.map((date) => {
-            const { dow, date: num } = shortDayLabel(date);
-            const isToday = date === today;
-            return (
-              <div
-                key={date}
-                className={`flex items-baseline gap-1 border-b border-base-content/10 px-2 py-1 text-xs ${
-                  isToday ? "font-bold text-primary" : "opacity-70"
-                }`}
-              >
-                <span>{dow}</span>
-                <span className="text-base leading-none">{num}</span>
-                {isToday && <span className="text-[10px] text-primary">· today</span>}
-              </div>
-            );
-          })}
+          {dates.map((date) => (
+            <div
+              key={date}
+              className="flex items-baseline gap-1 border-b border-base-content/10 px-2 py-1 text-xs opacity-70"
+            >
+              <span>{dayDowLabel(date)}</span>
+              <span className="text-base leading-none">{dayNumber(date)}</span>
+            </div>
+          ))}
         </div>
-        <div className={`plan-grid${single ? " single" : ""}`} style={{ height: gridHeight }}>
+        <div className="plan-grid" style={{ gridTemplateColumns: columns, height: gridHeight }}>
           {/* Hour gutter: full-width grid item, pinned to the left edge while
               the columns scroll under it (sticky within the scrollport). */}
           <div
@@ -131,7 +119,6 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
               conflicts={conflicts}
               interactive={interactive}
               ghost={ghost?.date === date ? ghost : null}
-              nowMinute={date === today ? now : null}
               onEventClick={onEventClick}
               onSlotClick={onSlotClick}
               onResize={onResize}
@@ -152,7 +139,6 @@ function DayColumn({
   conflicts,
   interactive,
   ghost,
-  nowMinute,
   onEventClick,
   onSlotClick,
   onResize,
@@ -165,7 +151,6 @@ function DayColumn({
   conflicts: Map<number, number[]>;
   interactive: boolean;
   ghost: Ghost | null;
-  nowMinute: number | null;
   onEventClick?: (event: ScheduledEvent) => void;
   onSlotClick?: (date: string, startMinute: number) => void;
   onResize?: (eventId: number, endMinute: number) => void;
@@ -189,11 +174,11 @@ function DayColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`day-col ${date === todayISO() ? "col-today" : ""} ${isOver ? "drag-over" : ""}`}
+      className={`day-col ${isOver ? "drag-over" : ""}`}
       style={{ gridRow: 1, gridColumn: column }}
       onClick={clickSlot}
       role={armed ? "button" : undefined}
-      aria-label={armed ? `Place ${armedTask.name} on ${date}` : undefined}
+      aria-label={armed ? `Place ${armedTask.name} on Day ${dayNumber(date)}` : undefined}
     >
       {events.map((ev) => (
         <EventBlockView
@@ -214,9 +199,6 @@ function DayColumn({
         >
           {fmtTime(ghost.startMinute)}
         </div>
-      )}
-      {nowMinute != null && START_HOUR * 60 <= nowMinute && nowMinute <= END_HOUR * 60 && (
-        <div className="now-line" style={{ top: minuteToY(nowMinute) }} />
       )}
     </div>
   );

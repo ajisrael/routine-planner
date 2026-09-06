@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { ScheduledEvent, Task } from "@planner/shared";
+import { TEMPLATE_DAYS } from "@planner/shared";
 import { usePlannerStore, categoryById } from "../../store";
-import { fmtTime, monthCells, shortDayLabel, todayISO } from "../../lib/dates";
+import { dayNumber, dayDowLabel, fmtTime, weekOf } from "../../lib/dates";
 
 export interface MonthGridProps {
-  anchor: string;
   events: ScheduledEvent[];
   conflicts: Map<number, number[]>;
   interactive: boolean;
@@ -18,9 +18,8 @@ export interface MonthGridProps {
 
 const MAX_PILLS = 3;
 
-/** Month view: 6-week grid of day cells with compact pills (DESIGN.md §5.3/§5.4). */
+/** Template month view: a 30-cell grid (Mon = Day 1) with compact pills. */
 export function MonthGrid({
-  anchor,
   events,
   conflicts,
   interactive,
@@ -31,8 +30,6 @@ export function MonthGrid({
   onEventContextMenu,
 }: MonthGridProps): React.JSX.Element {
   const tasks = usePlannerStore((s) => s.tasks);
-  const cells = useMemo(() => monthCells(anchor), [anchor]);
-  const today = todayISO();
   const armed = armedTask != null && interactive;
 
   const byDate = useMemo(() => {
@@ -45,6 +42,12 @@ export function MonthGrid({
     return m;
   }, [events]);
 
+  const cells = useMemo(
+    () => Array.from({ length: TEMPLATE_DAYS }, (_, i) => String(i + 1).padStart(2, "0")),
+    [],
+  );
+  const blanks = (7 - (TEMPLATE_DAYS % 7)) % 7;
+
   return (
     <div className="lib-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-base-content/10">
       <div className="sticky top-0 z-10 mb-1 grid grid-cols-7 border-b border-base-content/10 bg-base-100">
@@ -55,12 +58,10 @@ export function MonthGrid({
         ))}
       </div>
       <div className="grid grid-cols-7">
-        {cells.map(({ date, inMonth }) => (
+        {cells.map((date) => (
           <MonthCell
             key={date}
             date={date}
-            inMonth={inMonth}
-            isToday={date === today}
             events={byDate.get(date) ?? []}
             conflicts={conflicts}
             interactive={interactive}
@@ -73,6 +74,9 @@ export function MonthGrid({
             onEventContextMenu={onEventContextMenu}
           />
         ))}
+        {Array.from({ length: blanks }, (_, i) => (
+          <div key={`blank-${i}`} className="month-cell" aria-hidden />
+        ))}
       </div>
     </div>
   );
@@ -80,8 +84,6 @@ export function MonthGrid({
 
 function MonthCell({
   date,
-  inMonth,
-  isToday,
   events,
   conflicts,
   interactive,
@@ -94,8 +96,6 @@ function MonthCell({
   onEventContextMenu,
 }: {
   date: string;
-  inMonth: boolean;
-  isToday: boolean;
   events: ScheduledEvent[];
   conflicts: Map<number, number[]>;
   interactive: boolean;
@@ -125,20 +125,20 @@ function MonthCell({
     else if (!armed && onDayClick) onDayClick(date);
   };
 
-  const { dow, date: num } = shortDayLabel(date);
-
   return (
     <div
       ref={setNodeRef}
-      className={`month-cell ${isToday ? "cell-today" : ""} ${isOver ? "drag-over" : ""}`}
+      className={`month-cell ${isOver ? "drag-over" : ""}`}
       onClick={clickCell}
       role={armed || onDayClick ? "button" : undefined}
       aria-label={
-        armed ? `Place ${armedTaskName} on ${dow} ${date}` : onDayClick ? `Open ${dow} ${date}` : undefined
+        armed ? `Place ${armedTaskName} on ${dayDowLabel(date)} ${dayNumber(date)}` : onDayClick ? `Open ${dayDowLabel(date)} ${dayNumber(date)}` : undefined
       }
     >
-      <div className={`mb-0.5 ${isToday ? "font-bold text-primary" : inMonth ? "opacity-70" : "opacity-40"}`}>
-        {num}
+      <div className={`mb-0.5 flex items-baseline gap-1 ${armed || onDayClick ? "text-primary" : "opacity-70"}`}>
+        <span className="font-bold">{dayNumber(date)}</span>
+        <span className="text-[9px] opacity-60">{dayDowLabel(date)}</span>
+        {weekOf(date) === 5 && <span className="text-[9px] opacity-40">tail</span>}
       </div>
       {shown.map((ev) => (
         <MonthPill
