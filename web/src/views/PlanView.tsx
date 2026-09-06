@@ -20,7 +20,7 @@ import {
   weekLabel,
   weekOf,
 } from "../lib/dates";
-import { yToMinute as yToMinuteOf } from "../components/calendar/geometry";
+import { DEFAULT_HOUR_HEIGHT, yToMinute as yToMinuteOf } from "../components/calendar/geometry";
 import { toast } from "../store/toasts";
 
 type PlanMode = "day" | "week" | "month";
@@ -35,6 +35,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
   const [person, setPerson] = useState<number | null>(null);
   const [armedTaskId, setArmedTaskId] = useState<number | null>(null);
   const [ghost, setGhost] = useState<Ghost | null>(null);
+  const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
   const [formTaskId, setFormTaskId] = useState<number | null>(null);
   const [formOccurrence, setFormOccurrence] = useState<ScheduledEvent | null>(null);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
@@ -84,7 +85,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
     if (!over || over.data.current?.type !== "day" || !active) return null;
     const date = over.data.current.date as string;
     const pointerY = (event.activatorEvent as PointerEvent).clientY + event.delta.y;
-    const minute = yToMinuteOf(pointerY - over.rect.top);
+    const minute = yToMinuteOf(pointerY - over.rect.top, hourHeight);
     const duration =
       active.type === "library-task"
         ? store.tasks.find((t) => t.id === active.taskId)?.durationMinutes ?? 45
@@ -267,6 +268,7 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
                 interactive
                 armedTask={armedTask}
                 ghost={ghost}
+                onHourHeight={setHourHeight}
                 onEventClick={openOccurrenceForm}
                 onSlotClick={(date, minute) => void placeArmed(date, minute)}
                 onResize={(eventId, endMinute) => {

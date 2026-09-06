@@ -87,7 +87,7 @@
   opacity: 0.55;
 }
 .gutter-spacer {
-  height: var(--hour-h);
+  min-height: 28px;
 }
 
 .day-col {

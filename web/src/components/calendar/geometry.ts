@@ -1,20 +1,25 @@
 import type { ScheduledEvent } from "@planner/shared";
 
 /** Calendar metrics (DESIGN.md §3.4, extended to a full 24-hour window). */
-export const HOUR_HEIGHT = 60;
 export const START_HOUR = 0;
 export const END_HOUR = 24;
 export const GUTTER_WIDTH = 56;
 export const SLOT = 15;
 
+/** How many hours of the day the scroll window shows by default. */
+export const VISIBLE_HOURS = 6;
+export const MIN_HOUR_HEIGHT = 48;
+/** Initial estimate before the scroll viewport is measured (~900px card). */
+export const DEFAULT_HOUR_HEIGHT = 150;
+
 /** Minutes from local midnight → y offset inside the grid. */
-export function minuteToY(minute: number): number {
-  return ((minute - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+export function minuteToY(minute: number, hourHeight: number): number {
+  return ((minute - START_HOUR * 60) / 60) * hourHeight;
 }
 
 /** y offset inside the grid → snapped start minute (§6.3). Last slot is 23:45. */
-export function yToMinute(y: number): number {
-  const m = (y / HOUR_HEIGHT) * 60 + START_HOUR * 60;
+export function yToMinute(y: number, hourHeight: number): number {
+  const m = (y / hourHeight) * 60 + START_HOUR * 60;
   const snapped = Math.round(m / SLOT) * SLOT;
   return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60 - SLOT, snapped));
 }

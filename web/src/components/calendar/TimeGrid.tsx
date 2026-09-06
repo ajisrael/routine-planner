@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { ScheduledEvent, Task } from "@planner/shared";
 import { SLOT_MINUTES } from "@planner/shared";
@@ -6,9 +6,11 @@ import { usePlannerStore, categoryById } from "../../store";
 import { dayDowLabel, dayNumber, fmtTime } from "../../lib/dates";
 import { AvatarStack } from "../Avatar";
 import {
-  START_HOUR,
+  DEFAULT_HOUR_HEIGHT,
   END_HOUR,
-  HOUR_HEIGHT,
+  MIN_HOUR_HEIGHT,
+  START_HOUR,
+  VISIBLE_HOURS,
   layoutOverlaps,
   minuteToY,
   packedStyle,
@@ -33,6 +35,8 @@ export interface TimeGridProps {
   onSlotClick?: (date: string, startMinute: number) => void;
   onResize?: (eventId: number, endMinute: number) => void;
   onEventContextMenu?: (event: ScheduledEvent, e: React.MouseEvent) => void;
+  /** Reports the computed hour height (viewport / VISIBLE_HOURS) for drag math. */
+  onHourHeight?: (hourHeight: number) => void;
 }
 
 /** Day/week grid: hour gutter + day columns sharing one 15-min geometry (§4.3). */
@@ -48,8 +52,42 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
     onSlotClick,
     onResize,
     onEventContextMenu,
+    onHourHeight,
   } = props;
   const single = dates.length === 1;
+
+  // Zoom: fit VISIBLE_HOURS into the scroll viewport, tracked on resize.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const recompute = (): void => {
+      const hh = Math.max(MIN_HOUR_HEIGHT, Math.round(el.clientHeight / VISIBLE_HOURS));
+      setHourHeight((cur) => (cur === hh ? cur : hh));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    onHourHeight?.(hourHeight);
+  }, [hourHeight, onHourHeight]);
+
+  // Keep the earliest occurrence of the visible days in view — generated
+  // defaults (09:00) would otherwise sit below the fold of the 6-hour window.
+  const datesKey = dates.join(",");
+  const hasEvents = events.length > 0;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const visible = events.filter((e) => dates.includes(e.eventDate));
+    const earliest = visible.length > 0 ? Math.min(...visible.map((e) => e.startMinute)) : null;
+    const targetMinute = earliest == null ? 7 * 60 : Math.max(0, earliest - 30);
+    el.scrollTo({ top: minuteToY(targetMinute, hourHeight), behavior: "smooth" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datesKey, hasEvents, hourHeight]);
 
   const byDate = useMemo(() => {
     const m = new Map<string, ScheduledEvent[]>();
@@ -60,13 +98,18 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
 
   // Full 24h window; grows if an event somehow ends past midnight.
   const lastHour = Math.max(END_HOUR, ...events.map((e) => Math.ceil(e.endMinute / 60)));
-  const gridHeight = (lastHour - START_HOUR) * HOUR_HEIGHT;
+  const gridHeight = (lastHour - START_HOUR) * hourHeight;
   const columns = `56px repeat(${dates.length}, minmax(148px, 1fr))`;
 
   return (
     // Fixed "window": the card constrains the height; this is the scroll
     // container. Day headers stay pinned on top, hour labels pinned left.
-    <div className="lib-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-base-content/10">
+    // --hour-h drives the CSS hour grid; ~VISIBLE_HOURS are visible at once.
+    <div
+      ref={scrollRef}
+      className="lib-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-base-content/10"
+      style={{ ["--hour-h" as string]: `${hourHeight}px` } as React.CSSProperties}
+    >
       <div style={{ minWidth: single ? undefined : 900 }}>
         <div
           className="plan-grid sticky top-0 z-20 bg-base-100"
@@ -124,6 +167,7 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
               onResize={onResize}
               onEventContextMenu={onEventContextMenu}
               armedTask={armedTask ?? null}
+              hourHeight={hourHeight}
             />
           ))}
         </div>
@@ -144,6 +188,7 @@ function DayColumn({
   onResize,
   onEventContextMenu,
   armedTask,
+  hourHeight,
 }: {
   date: string;
   column: number;
@@ -156,6 +201,7 @@ function DayColumn({
   onResize?: (eventId: number, endMinute: number) => void;
   onEventContextMenu?: (event: ScheduledEvent, e: React.MouseEvent) => void;
   armedTask: Task | null;
+  hourHeight: number;
 }): React.JSX.Element {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${date}`,
@@ -168,7 +214,7 @@ function DayColumn({
   const clickSlot = (e: React.MouseEvent<HTMLDivElement>): void => {
     if (!armed || !onSlotClick) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    onSlotClick(date, yToMinute(e.clientY - rect.top));
+    onSlotClick(date, yToMinute(e.clientY - rect.top, hourHeight));
   };
 
   return (
@@ -190,12 +236,13 @@ function DayColumn({
           onClick={onEventClick}
           onResize={onResize}
           onContextMenu={onEventContextMenu}
+          hourHeight={hourHeight}
         />
       ))}
       {ghost && (
         <div
           className="drop-ghost"
-          style={{ top: minuteToY(ghost.startMinute), height: (ghost.durationMinutes / 60) * HOUR_HEIGHT }}
+          style={{ top: minuteToY(ghost.startMinute, hourHeight), height: (ghost.durationMinutes / 60) * hourHeight }}
         >
           {fmtTime(ghost.startMinute)}
         </div>
@@ -212,6 +259,7 @@ function EventBlockView({
   onClick,
   onResize,
   onContextMenu,
+  hourHeight,
 }: {
   event: ScheduledEvent;
   pack: { col: number; cols: number } | undefined;
@@ -220,6 +268,7 @@ function EventBlockView({
   onClick?: (event: ScheduledEvent) => void;
   onResize?: (eventId: number, endMinute: number) => void;
   onContextMenu?: (event: ScheduledEvent, e: React.MouseEvent) => void;
+  hourHeight: number;
 }): React.JSX.Element {
   const tasks = usePlannerStore((s) => s.tasks);
   const users = usePlannerStore((s) => s.users);
@@ -234,10 +283,10 @@ function EventBlockView({
   const category = categoryById(task?.categoryId ?? null);
   const assigneeUsers = users.filter((u) => assignees.some((a) => a.taskId === event.taskId && a.userId === u.id));
 
-  const height = ((event.endMinute - event.startMinute) / 60) * HOUR_HEIGHT;
+  const height = ((event.endMinute - event.startMinute) / 60) * hourHeight;
   const compact = height < 40;
   const style: React.CSSProperties = {
-    top: minuteToY(event.startMinute),
+    top: minuteToY(event.startMinute, hourHeight),
     height: Math.max(height - 2, 14),
     ["--ev-cat" as string]: category?.color ?? "var(--color-base-content)",
     ...packedStyle(pack),
@@ -262,7 +311,7 @@ function EventBlockView({
       } catch {
         /* already released */
       }
-      const minute = yToMinute(pe.clientY - rect.top);
+      const minute = yToMinute(pe.clientY - rect.top, hourHeight);
       onResize(event.id, Math.max(event.startMinute + SLOT_MINUTES, minute));
       window.setTimeout(() => {
         skipClick.current = false;
