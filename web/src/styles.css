@@ -304,6 +304,36 @@ button.month-pill.pill-dragging {
   scrollbar-width: thin;
 }
 
+/* Round color swatch input (category manager) */
+.swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+.swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.swatch::-webkit-color-swatch {
+  border: 1px solid color-mix(in oklab, var(--color-base-content) 25%, transparent);
+  border-radius: 50%;
+}
+
+/* Category picker / manager rows */
+.cat-row {
+  transition: background 0.12s;
+}
+.cat-row:hover {
+  background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+}
+.cat-row.checked {
+  background: color-mix(in srgb, var(--row-color, var(--color-base-content)) 14%, transparent);
+}
+
 .menu-scroll {
   scrollbar-width: thin;
 }
