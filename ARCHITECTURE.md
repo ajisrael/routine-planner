@@ -174,16 +174,17 @@ db.ts (better-sqlite3 instance, migrations, WAL)
 
 ### 5.3 Recurrence engine
 
-Pure module `recurrence.ts` implementing the generation algorithm in `DATA_MODEL.md §7`:
+Pure module `recurrence.ts` (in `@planner/shared`, re-exported by the server) implementing the generation algorithm in `DATA_MODEL.md §7` over the **theoretical 30-day template month** (Monday = Day 1):
 
 ```
-occurrenceDates(rule, windowStart, windowEnd): Date[]   // pure
-generateForRule(rule, referenceTime, window)            // deletes + inserts rows
+occurrenceDays(rule, firstDay, lastDay): number[]       // pure, template day numbers
+generateForRule(rule, referenceTime)                    // deletes + inserts rows
 ```
 
-- Invoked on rule create/update (behavior 5.3) — regenerates all rule-linked events in the window using the reference time.
-- Idempotent by rule: regeneration always starts by deleting `rule_id` events in the window, then inserting fresh ones.
+- Invoked on rule create/update (behavior 5.3) — regenerates all rule-linked events across the template using the reference time.
+- Idempotent by rule: regeneration always starts by deleting `rule_id` events, then inserting fresh ones.
 - Events with `rule_id IS NULL` (manual/one-off) are never touched.
+- `event_date` stores template days as zero-padded strings "01"…"30".
 
 ### 5.4 API surface
 

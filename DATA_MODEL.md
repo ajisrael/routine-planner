@@ -8,7 +8,7 @@
 4. **Explicit sync**: Separately exposing "sync to all" (and future/past) actions propagates an occurrence's time/duration to sibling occurrences under the same rule.
 5. **Effective assignment**: Every occurrence inherits its task's assignee set (`task_assignees`). Conflict detection and person-filters operate on that set.
 6. **Time representation**: All times are stored as minutes from local midnight (`start_minute`, `end_minute`). No timezones or DST handling in v1.
-7. **30-day horizon**: Generation and display are bounded to a 30-day window. Historical rows may remain but are never surfaced.
+7. **Theoretical template month**: The planner plans a *repeating 30-day routine template*, not real calendar dates. The template has 30 days with Monday as Day 1 (weeks: 1–7, 8–14, 15–21, 22–28, plus the 2-day tail 29–30). `event_date` stores a template day as a zero-padded string "01"…"30" (sorts lexically). There is no "today" and no date navigation — the template IS the schedule.
 
 ---
 
@@ -119,7 +119,7 @@ One row per materialized occurrence — the "planned routine". Written when drag
 | id | INTEGER | PK, AUTOINCREMENT | |
 | task_id | INTEGER | NOT NULL, FK → tasks.id CASCADE | |
 | rule_id | INTEGER | NULL, FK → recurrence_rules.id | NULL for one-off (non-recurring) events |
-| event_date | TEXT | NOT NULL | ISO date, local |
+| event_date | TEXT | NOT NULL | Template day, zero-padded "01"…"30" (Day 1 = Monday) |
 | start_minute | INTEGER | NOT NULL, CHECK 0…1439 | Minutes from local midnight |
 | end_minute | INTEGER | NOT NULL, CHECK (end_minute > start_minute) | |
 | created_at | TEXT | NOT NULL | |
@@ -201,16 +201,16 @@ Assignees are **not** stored per event in v1 — every occurrence inherits its t
 
 ---
 
-## 7. Regeneration Algorithm (30-day window)
+## 7. Regeneration Algorithm (template month)
 
-For a rule, compute occurrence dates:
+For a rule, compute occurrence DAYS of the 30-day template:
 
-1. `weekly_days`: for each day D in window, include D if `dow(D) ∈ days_of_week`.
-2. `interval_days`: include D if `(days between start_date and D) % interval_days == 0`.
-3. `monthly_date`: include D if `day(D) == day_of_month` (skip if day doesn't exist in D's month).
-4. `monthly_weekday`: include D if D is the `month_week`-th `month_dow` in its month (`month_week = -1` → last).
+1. `weekly_days`: include day D if `templateDow(D) ∈ days_of_week`, where `templateDow(D) = ((D−1) mod 7) + 1` (Day 1 = Monday).
+2. `interval_days`: include D if `(D − 1) % interval_days == 0` (anchored at Day 1).
+3. `monthly_date`: include D if `D == day_of_month` — "Day N of the template" (N ≤ 30; higher values match nothing).
+4. `monthly_weekday`: not representable in the template — matches nothing (kept in the schema for compatibility).
 
-Generation writes one `scheduled_events` row per date using the reference time (from the rule's anchor/first occurrence, defaulting to the rule's creating drop time, else library time or `09:00` if none recorded).
+Generation writes one `scheduled_events` row per day using the reference time (an explicit reference time from the form, else the task's earliest occurrence, else `09:00` + duration).
 
 ---
 
