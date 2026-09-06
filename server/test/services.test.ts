@@ -68,14 +68,17 @@ describe("regenerate service", () => {
 });
 
 describe("sync service (DATA_MODEL.md §5.5)", () => {
-  it("sync-to-all updates every sibling; future only >= anchor date", () => {
+  it("sync-to-all updates every sibling; future only >= anchor date", async () => {
+    const { addDaysISO } = await import("@planner/shared");
+    const { todayISO } = await import("../src/services/rows.js");
+    const today = todayISO();
     const { taskId } = makeTask("SyncMe", 30, null);
     const ins = db.prepare(
       "INSERT INTO scheduled_events (task_id, rule_id, event_date, start_minute, end_minute) VALUES (?, NULL, ?, ?, ?)",
     );
-    const e1 = ins.run(taskId, "2026-09-01", 480, 510);
-    const e2 = ins.run(taskId, "2026-09-05", 600, 630);
-    const e3 = ins.run(taskId, "2026-09-10", 720, 750);
+    const e1 = ins.run(taskId, addDaysISO(today, -1), 480, 510);
+    const e2 = ins.run(taskId, addDaysISO(today, 0), 600, 630);
+    const e3 = ins.run(taskId, addDaysISO(today, 5), 720, 750);
 
     const changed = syncOccurrenceToSiblings(Number(e1.lastInsertRowid), "future", broadcaster);
     expect(changed.map((c) => c.id).sort()).toEqual([Number(e2.lastInsertRowid), Number(e3.lastInsertRowid)].sort());
