@@ -71,9 +71,10 @@ interface PlannerState {
   deleteEvent: (id: number) => Promise<boolean | null>;
   syncEvent: (id: number, scope: "all" | "future") => Promise<boolean | null>;
 
-  createPersona: (displayName: string) => Promise<boolean | null>;
+  createPersona: (displayName: string) => Promise<User | null>;
   renameUser: (id: number, displayName: string) => Promise<boolean | null>;
-  createCategory: (name: string, color?: string | null) => Promise<boolean | null>;
+  deletePersona: (id: number) => Promise<boolean | null>;
+  createCategory: (name: string, color?: string | null) => Promise<Category | null>;
   updateCategory: (id: number, name?: string, color?: string | null) => Promise<boolean | null>;
   deleteCategory: (id: number) => Promise<boolean | null>;
 }
@@ -280,6 +281,17 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
         const u = await api.createPersona(displayName);
         set((s) => ({ users: upsertById(s.users, u) }));
         useSession.getState().pulse();
+        return u;
+      }),
+
+    deletePersona: (id) =>
+      withRecovery(async () => {
+        await api.deleteUser(id);
+        set((s) => ({
+          users: s.users.filter((u) => u.id !== id),
+          assignees: s.assignees.filter((a) => a.userId !== id),
+        }));
+        useSession.getState().pulse();
         return true;
       }),
 
@@ -296,7 +308,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
         const c = await api.createCategory(name, color);
         set((s) => ({ categories: upsertById(s.categories, c) }));
         useSession.getState().pulse();
-        return true;
+        return c;
       }),
 
     updateCategory: (id, name, color) =>

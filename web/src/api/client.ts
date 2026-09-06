@@ -90,6 +90,7 @@ export const api = {
     request("POST", "/api/users", { displayName }),
   renameUser: (id: number, displayName: string): Promise<User> =>
     request("PUT", `/api/users/${id}`, { displayName }),
+  deleteUser: (id: number): Promise<{ ok: boolean }> => request("DELETE", `/api/users/${id}`),
 
   createCategory: (name: string, color?: string | null): Promise<Category> =>
     request("POST", "/api/categories", { name, color }),
