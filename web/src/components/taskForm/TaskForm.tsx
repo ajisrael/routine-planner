@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { RecurrenceRuleType, ScheduledEvent, Task } from "@planner/shared";
 import { describeRule, occurrenceDays, TEMPLATE_DAYS } from "@planner/shared";
 import type { RuleShape } from "@planner/shared";
-import { usePlannerStore, assigneesOfTask, eventsOfTask } from "../../store";
+import { usePlannerStore, assigneesOfTask } from "../../store";
 import type { TaskRulePayload } from "../../api/client";
 import { toast } from "../../store/toasts";
-import { fmtTime, parseTime } from "../../lib/dates";
 import { CategoryPickerDialog } from "../CategoryPickerDialog";
 import { AssigneePickerDialog } from "../AssigneePickerDialog";
 import { AvatarStack } from "../Avatar";
@@ -20,16 +19,13 @@ interface FormState {
   categoryId: number | null;
   assignees: Set<number>;
   ruleType: RecurrenceRuleType;
-  refTime: string;
   daysOfWeek: Set<number>;
   intervalDays: number;
   dayOfMonth: number;
-  monthWeek: number;
-  monthDow: number;
   notes: string;
 }
 
-function rulePayload(s: FormState): RuleShape & { refStartMinute: number | null } {
+function rulePayload(s: FormState): RuleShape {
   return {
     ruleType: s.ruleType,
     daysOfWeek: s.ruleType === "weekly_days" ? DOW_ORDER.filter((d) => s.daysOfWeek.has(d)) : null,
@@ -38,7 +34,6 @@ function rulePayload(s: FormState): RuleShape & { refStartMinute: number | null 
     monthWeek: null,
     monthDow: null,
     startDate: "01",
-    refStartMinute: s.ruleType === "none" ? null : parseTime(s.refTime),
   };
 }
 
@@ -83,21 +78,15 @@ export function TaskForm({
       return;
     }
     const rule = store.recurrenceRules.find((r) => r.taskId === task.id);
-    const evs = eventsOfTask(task.id);
-    const first = [...evs].sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
-    const refTime = fmtTime(first?.startMinute ?? 540);
     setForm({
       name: task.name,
       duration: task.durationMinutes,
       categoryId: task.categoryId,
       assignees: new Set(assigneesOfTask(task.id).map((u) => u.id)),
       ruleType: rule?.ruleType ?? "none",
-      refTime,
       daysOfWeek: new Set(rule?.daysOfWeek ?? []),
       intervalDays: rule?.intervalDays ?? 2,
       dayOfMonth: rule?.dayOfMonth ?? 1,
-      monthWeek: rule?.monthWeek ?? 1,
-      monthDow: rule?.monthDow ?? 1,
       notes: task.notes ?? "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,12 +95,11 @@ export function TaskForm({
   const preview = useMemo((): string => {
     if (form.ruleType === "none") return "One-off — schedule it by hand on the calendar.";
     const days = occurrenceDays(rulePayload(form));
-    const at = ` at ${form.refTime}`;
     if (days.length === 0) {
-      return `Occurs ${describeRule(rulePayload(form))}${at} — no matching days in the template.`;
+      return `Occurs ${describeRule(rulePayload(form))} — no matching days in the template.`;
     }
     const next = days.slice(0, 5).map((d) => `Day ${d}`);
-    return `Occurs ${describeRule(rulePayload(form))}${at} — ${days.length} days in the template: ${next.join(", ")}${days.length > next.length ? ", …" : ""}.`;
+    return `Occurs ${describeRule(rulePayload(form))} — ${days.length} days in the template: ${next.join(", ")}${days.length > next.length ? ", …" : ""}. Drop it on the calendar once and every occurrence follows that time.`;
   }, [form]);
 
   if (!open) return null;
@@ -270,16 +258,6 @@ export function TaskForm({
 
           {form.ruleType !== "none" && (
             <div className="flex flex-col gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <span className="text-xs opacity-60 shrink-0">Reference time</span>
-                <input
-                  type="time"
-                  className="input input-sm w-28"
-                  value={form.refTime}
-                  step={900}
-                  onChange={(e) => set("refTime", e.target.value)}
-                />
-              </label>
               {form.ruleType === "weekly_days" && (
                 <div className="flex gap-1" role="group" aria-label="Days of week">
                   {DOW_ORDER.map((d, i) => (
@@ -412,8 +390,8 @@ export function TaskForm({
             </button>
           </div>
           <p className="text-[11px] opacity-50">
-            Instance-first: moving one occurrence never touches its siblings. Changing frequency regenerates
-            occurrences across the 30-day template.
+            Recurring tasks start at 09:00 — drop one on the calendar and every occurrence follows that time.
+            Moving a single occurrence never touches its siblings; changing frequency regenerates the template.
           </p>
         </form>
       </div>
@@ -445,12 +423,9 @@ function blankForm(): FormState {
     categoryId: null,
     assignees: new Set<number>(),
     ruleType: "none",
-    refTime: "09:00",
     daysOfWeek: new Set<number>(),
     intervalDays: 2,
     dayOfMonth: 1,
-    monthWeek: 1,
-    monthDow: 1,
     notes: "",
   };
 }
