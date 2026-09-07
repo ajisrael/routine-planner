@@ -132,7 +132,7 @@ describe("broadcaster", () => {
 describe("occurrenceDays sanity through services", () => {
   it("monthly_date beyond the template matches nothing", () => {
     expect(occurrenceDays(
-      { ruleType: "monthly_date", daysOfWeek: null, intervalDays: null, dayOfMonth: 31, monthWeek: null, monthDow: null, startDate: "01" },
+      { ruleType: "monthly_date", daysOfWeek: null, intervalDays: null, weeksInterval: null, dayOfMonth: 31, monthWeek: null, monthDow: null, startDate: "01" },
     )).toEqual([]);
   });
 });

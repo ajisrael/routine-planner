@@ -14,6 +14,7 @@ const rule = (shape: Partial<RuleShape>): RuleShape => ({
   ruleType: "none",
   daysOfWeek: null,
   intervalDays: null,
+  weeksInterval: null,
   dayOfMonth: null,
   monthWeek: null,
   monthDow: null,
@@ -87,6 +88,22 @@ describe("recurrence engine on the template (DATA_MODEL.md §7)", () => {
   it("monthly_date = a specific template day", () => {
     const days = occurrenceDays(rule({ ruleType: "monthly_date", dayOfMonth: 15 }));
     expect(days).toEqual([15]);
+  });
+
+  it("weekly_interval every 2 weeks on Mon+Wed (each weekday anchored at its first day)", () => {
+    const days = occurrenceDays(rule({ ruleType: "weekly_interval", weeksInterval: 2, daysOfWeek: [1, 3] }));
+    expect(days).toEqual([1, 3, 15, 17, 29]); // Mon: 1,15,29 · Wed: 3,17
+  });
+
+  it("weekly_interval every 1 week = plain weekly", () => {
+    const days = occurrenceDays(rule({ ruleType: "weekly_interval", weeksInterval: 1, daysOfWeek: [1, 3, 5] }));
+    expect(days).toEqual([1, 3, 5, 8, 10, 12, 15, 17, 19, 22, 24, 26, 29]);
+  });
+
+  it("describeRule labels weekly_interval", () => {
+    expect(describeRule(rule({ ruleType: "weekly_interval", weeksInterval: 2, daysOfWeek: [1, 3] }))).toBe(
+      "Every 2 weeks on Mon, Wed",
+    );
   });
 
   it("monthly_date beyond the template matches nothing", () => {
