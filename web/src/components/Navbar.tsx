@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "../store/session";
 import { useTheme } from "../lib/theme";
 import { Avatar } from "./Avatar";
@@ -29,6 +30,26 @@ export function Navbar({
   const syncPulse = useSession((s) => s.syncPulse);
   const [theme, toggleTheme] = useTheme();
   const setUser = useSession((s) => s.setUser);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss the user menu on any outside pointer press or Escape (a CSS-only
+  // dropdown never closes on touch, where focus can't be relied on).
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: PointerEvent): void => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   const logout = async (): Promise<void> => {
     try {
@@ -37,6 +58,7 @@ export function Navbar({
       disconnectRealtime();
       usePlannerStore.getState().reset();
       setUser(null);
+      setMenuOpen(false);
       toast.info("Logged out");
     }
   };
@@ -58,18 +80,18 @@ export function Navbar({
               key={t.id}
               role="tab"
               aria-selected={tab === t.id}
-              className={`tab${tab === t.id ? " tab-active" : ""}`}
+              className={`tab h-11 min-w-14 text-xs sm:min-w-20 sm:text-sm gap-1${tab === t.id ? " tab-active" : ""}`}
               onClick={() => onTab(t.id)}
             >
               <span aria-hidden>{t.icon}</span>
-              <span className="hidden sm:inline">&nbsp;{t.label}</span>
+              <span className="max-[359px]:hidden">{t.label}</span>
             </button>
           ))}
         </div>
       </div>
       <div className="navbar-end gap-2">
         <button
-          className="btn btn-ghost btn-sm btn-square"
+          className="btn btn-ghost btn-sm btn-square w-11 h-11"
           onClick={toggleTheme}
           title="Toggle light / dark (Pastel ↔ Pastel Dusk)"
           aria-label="Toggle theme"
@@ -88,28 +110,43 @@ export function Navbar({
           <span>{syncLabel}</span>
         </div>
         {user && (
-          <div className="dropdown dropdown-end">
-            <div tabIndex={0} role="button" className="btn btn-ghost btn-sm gap-2 px-2">
+          <div className="relative" ref={menuRef}>
+            <button
+              className="btn btn-ghost btn-sm gap-2 px-2 h-11"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+            >
               <Avatar user={user} />
               <span className="hidden sm:inline font-medium">{user.displayName}</span>
               <span className="text-[10px] opacity-50">▾</span>
-            </div>
-            <ul
-              tabIndex={0}
-              className="dropdown-content menu bg-base-100 rounded-box border border-base-content/10 shadow-lg w-56 z-50 p-2 text-sm"
-            >
-              <li className="menu-title">
-                <span>
-                  {user.displayName} · planning account
-                </span>
-              </li>
-              <li>
-                <button onClick={onManagePeople}>👪 Manage people</button>
-              </li>
-              <li>
-                <button onClick={() => void logout()}>↩︎ Log out</button>
-              </li>
-            </ul>
+            </button>
+            {menuOpen && (
+              <ul
+                role="menu"
+                className="absolute right-0 top-full mt-1 menu bg-base-100 rounded-box border border-base-content/10 shadow-lg w-56 z-50 p-2 text-sm"
+              >
+                <li className="menu-title">
+                  <span>{user.displayName} · planning account</span>
+                </li>
+                <li>
+                  <button
+                    className="h-11"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onManagePeople();
+                    }}
+                  >
+                    👪 Manage people
+                  </button>
+                </li>
+                <li>
+                  <button className="h-11" onClick={() => void logout()}>
+                    ↩︎ Log out
+                  </button>
+                </li>
+              </ul>
+            )}
           </div>
         )}
       </div>

@@ -24,7 +24,7 @@ export function LibraryRail({
   const filtered = active.filter((t) => filter == null || t.categoryId === filter);
 
   return (
-    <aside className="card h-full min-h-0 flex-col bg-base-100 border border-base-content/10">
+    <aside className="card h-full max-h-[45vh] min-h-0 flex-col lg:max-h-none bg-base-100 border border-base-content/10">
       <div className="card-body flex min-h-0 flex-1 flex-col gap-2 p-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-sm">Task library</h3>
@@ -72,7 +72,7 @@ function FilterChip({
   dot?: string | null;
 }): React.JSX.Element {
   return (
-    <button className={`btn btn-xs rounded-full${active ? " btn-primary" : " btn-ghost"}`} onClick={onClick}>
+    <button className={`btn btn-sm rounded-full h-11${active ? " btn-primary" : " btn-ghost"}`} onClick={onClick}>
       {dot != null && <span className="inline-block w-2 h-2 rounded-full" style={{ background: dot }} />}
       {label}
     </button>
@@ -103,7 +103,7 @@ function RailRow({
   return (
     <div
       ref={setNodeRef}
-      className={`lib-row flex items-center gap-2 rounded-xl border border-base-content/5 px-2 py-1.5 text-sm cursor-grab active:cursor-grabbing ${
+      className={`lib-row flex items-center gap-2 rounded-xl border border-base-content/5 px-2 py-1.5 text-sm h-11 cursor-grab active:cursor-grabbing ${
         armed ? " armed" : ""
       }${isDragging ? " opacity-40" : ""}`}
       onClick={() => onArm(armed ? null : task.id)}

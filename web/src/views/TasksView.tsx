@@ -50,7 +50,7 @@ export default function TasksView(): React.JSX.Element {
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <span className="text-xs opacity-50 mr-1">Filter:</span>
         <button
-          className={`btn btn-xs rounded-full${filter === null ? " btn-primary" : " btn-ghost"}`}
+          className={`btn btn-sm rounded-full h-11${filter === null ? " btn-primary" : " btn-ghost"}`}
           onClick={() => setFilter(null)}
         >
           All
@@ -58,7 +58,7 @@ export default function TasksView(): React.JSX.Element {
         {categories.map((c) => (
           <button
             key={c.id}
-            className={`btn btn-xs rounded-full gap-1${filter === c.id ? " btn-primary" : " btn-ghost"}`}
+            className={`btn btn-sm rounded-full gap-1 h-11${filter === c.id ? " btn-primary" : " btn-ghost"}`}
             onClick={() => setFilter(c.id)}
           >
             <span className="inline-block w-2 h-2 rounded-full" style={{ background: c.color ?? "transparent" }} />
@@ -137,11 +137,11 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }): React.J
               {task.name}
             </span>
           </h3>
-          <div className="flex gap-0.5 shrink-0">
-            <button className="btn btn-ghost btn-xs" onClick={onEdit} aria-label={`Edit ${task.name}`}>
+          <div className="flex gap-1 shrink-0">
+            <button className="btn btn-ghost btn-sm w-11 h-11" onClick={onEdit} aria-label={`Edit ${task.name}`}>
               ✎
             </button>
-            <button className="btn btn-ghost btn-xs" onClick={() => void remove()} aria-label={`Delete ${task.name}`}>
+            <button className="btn btn-ghost btn-sm w-11 h-11" onClick={() => void remove()} aria-label={`Delete ${task.name}`}>
               🗑
             </button>
           </div>
