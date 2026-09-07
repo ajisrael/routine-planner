@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
 import { usePlannerStore } from "../store";
 import { PeopleStage } from "../components/setup/PeopleStage";
-import { DailyStage } from "../components/setup/DailyStage";
-import { WeeklyStage } from "../components/setup/WeeklyStage";
-import { MonthlyStage } from "../components/setup/MonthlyStage";
+import PlanView, { type SetupCadence } from "./PlanView";
 import { scaleStat, type ScaleStat } from "../lib/wizard/status";
 
 const STEPS = ["people", "daily", "weekly", "monthly"] as const;
@@ -74,11 +72,11 @@ export default function SetupView({
       case "people":
         return <PeopleStage />;
       case "daily":
-        return <DailyStage />;
+        return <PlanView key={step} setup={"daily" satisfies SetupCadence} />;
       case "weekly":
-        return <WeeklyStage />;
+        return <PlanView key={step} setup={"weekly" satisfies SetupCadence} />;
       case "monthly":
-        return <MonthlyStage />;
+        return <PlanView key={step} setup={"monthly" satisfies SetupCadence} />;
     }
   };
 
