@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en" data-theme="pasteldusk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frequency selector — functional prototype</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/daisyui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/themes.css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.4/dist/index.global.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :where(.grid, .flex) > * { min-width: 0; }
+  :where(p, h1, h2, h3, h4, li, td, th, .badge) { overflow-wrap: anywhere; }
+
+  [data-theme="pasteldusk"] {
+    --color-base-100: #2b2b33; --color-base-200: #24242b; --color-base-300: #1d1d23;
+    --color-base-content: #eae8f2;
+    --color-primary: #b7a6ea; --color-primary-content: #2b2b33;
+    --color-secondary: #93d6c6; --color-secondary-content: #1f3a34;
+    --color-accent: #f4b6c5; --color-accent-content: #43222c;
+    --color-neutral: #3d3d47; --color-neutral-content: #eae8f2;
+    --color-info: #9cc7e8; --color-info-content: #1e3346;
+    --color-success: #a3d4ae; --color-success-content: #1e3a26;
+    --color-warning: #ecd3a0; --color-warning-content: #443a1e;
+    --color-error: #e89da8; --color-error-content: #44232a;
+    --radius-selector: 0.5rem; --radius-field: 0.5rem; --radius-box: 1rem;
+    --size-selector: 0.25rem; --size-field: 0.25rem;
+    --border: 1px; --depth: 1; --noise: 0;
+  }
+
+  .day-circle {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; cursor: pointer; user-select: none;
+    background: var(--color-base-200); color: var(--color-base-content);
+    border: 2px solid transparent; transition: all .12s;
+  }
+  .day-circle:hover { background: color-mix(in oklab, var(--color-primary) 14%, var(--color-base-200)); }
+  .day-circle.on { background: var(--color-primary); color: var(--color-primary-content); }
+  .seg { display: inline-flex; width: 100%; background: var(--color-base-200); border-radius: 0.65rem; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .seg button { flex: 1 1 0; }
+  .seg button {
+    border: none; background: transparent; color: var(--color-base-content);
+    padding: 6px 14px; border-radius: 0.5rem; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .seg button.on { background: var(--color-primary); color: var(--color-primary-content); }
+  .preview {
+    font-size: 12px; font-weight: 600; color: var(--color-primary);
+    background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+    border-radius: 0.5rem; padding: 7px 10px; text-align: center;
+  }
+  .stepper { display: inline-flex; align-items: stretch; border-radius: 0.5rem; overflow: hidden; }
+  .join { overflow: hidden; }
+  .join > * { height: 100%; }
+  .join > *:first-child { border-top-left-radius: 0.5rem; border-bottom-left-radius: 0.5rem; }
+  .join > *:last-child { border-top-right-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
+  .join .btn { height: 100%; line-height: 1; padding-top: 0; padding-bottom: 0; box-shadow: none; border: none; }
+  .stepper button { width: 30px; background: var(--color-base-200); border: none; color: var(--color-base-content); cursor: pointer; font-size: 15px; }
+  .stepper .val { display: inline-flex; align-items: center; padding: 0 10px; background: var(--color-base-300); font-weight: 700; font-size: 13px; min-width: 44px; justify-content: center; }
+  .avatar-dot { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; color: white; font-size: 9px; font-weight: 700; flex: none; }
+  .assign-pick { cursor: pointer; border: 2px solid transparent; border-radius: 1rem; padding: 3px 10px 3px 4px; display: inline-flex; align-items: center; gap: 6px; background: var(--color-base-200); }
+  .assign-pick.on { border-color: var(--ppl-color); background: color-mix(in srgb, var(--ppl-color) 14%, var(--color-base-100)); }
+  .payload { font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head>
+<body class="bg-base-200 min-h-screen text-base-content">
+<div class="max-w-[640px] mx-auto p-5 flex flex-col gap-4">
+
+  <header class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl bg-primary text-primary-content grid place-items-center text-lg">🔁</div>
+    <div>
+      <h1 class="text-xl font-bold leading-tight">Add task — functional prototype</h1>
+      <p class="text-sm opacity-60">Option A, fully wired: Doesn't Repeat · Daily · Weekly · Custom (Google-style panel). Annotate anything; “Save” shows the rule the app would store.</p>
+    </div>
+  </header>
+
+  <div class="card bg-base-100 border border-base-content/10">
+    <div class="card-body p-4 flex flex-col gap-3">
+      <h3 class="text-lg font-bold">Add task</h3>
+
+      <div class="grid grid-cols-2 gap-3">
+        <fieldset class="fieldset p-0 gap-2 min-w-0">
+          <legend class="fieldset-legend text-xs">Name *</legend>
+          <input type="text" class="input w-full h-10" placeholder="e.g. Homework" id="f-name">
+        </fieldset>
+        <fieldset class="fieldset p-0 gap-2 min-w-0">
+          <legend class="fieldset-legend text-xs">Duration *</legend>
+          <div class="join w-full items-stretch h-10">
+            <button type="button" class="join-item btn btn-sm" data-dur="-15">−</button>
+            <span class="join-item flex-1 grid place-items-center bg-base-200 text-sm font-semibold min-h-8 border-0 outline-none" id="f-duration">45 min</span>
+            <button type="button" class="join-item btn btn-sm" data-dur="15">+</button>
+          </div>
+        </fieldset>
+      </div>
+
+      <fieldset class="fieldset p-0 gap-2 min-w-0">
+        <legend class="fieldset-legend text-xs">Frequency</legend>
+        <div class="seg mx-auto" id="f-seg">
+          <button type="button" data-v="none" class="on">Doesn't Repeat</button>
+          <button type="button" data-v="daily">Daily</button>
+          <button type="button" data-v="weekly">Weekly</button>
+          <button type="button" data-v="custom">Custom</button>
+        </div>
+        <div id="f-freqpanel" class="flex flex-col gap-2.5 pt-0.5"></div>
+        <p class="preview" id="f-preview"></p>
+      </fieldset>
+
+      <fieldset class="fieldset p-0 gap-2">
+        <legend class="fieldset-legend text-xs">Assignees</legend>
+        <div class="flex flex-wrap gap-2" id="f-assignees"></div>
+      </fieldset>
+
+      <fieldset class="fieldset p-0 gap-2 min-w-0">
+        <legend class="fieldset-legend text-xs">Category</legend>
+        <button type="button" class="btn btn-sm w-full h-8 justify-start gap-2 min-w-0 font-normal">
+          <span class="inline-block w-3.5 h-3.5 rounded-full shrink-0" style="background:#f59e0b"></span>
+          <span class="truncate min-w-0 text-left">Chores</span>
+          <span class="ml-auto opacity-40 shrink-0">▾</span>
+        </button>
+      </fieldset>
+
+      <fieldset class="fieldset p-0 gap-2">
+        <legend class="fieldset-legend text-xs">Notes</legend>
+        <textarea class="textarea w-full" rows="2" placeholder="Optional context…"></textarea>
+      </fieldset>
+
+      <div class="modal-action justify-end gap-2 mt-1">
+        <button type="button" class="btn btn-ghost btn-sm" id="f-reset">Reset</button>
+        <button type="button" class="btn btn-primary btn-sm" id="f-save">Save task</button>
+      </div>
+      <div class="hidden border border-base-content/10 rounded-xl p-2 bg-base-200/60" id="f-saved">
+        <span class="text-[11px] opacity-60 block mb-1">Saved — the app would store:</span>
+        <code class="payload" id="f-payload"></code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const DOW = ["M", "T", "W", "T", "F", "S", "S"];
+  const DOW_FULL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const TEMPLATE_DAYS = 30;
+
+  const state = {
+    name: "",
+    duration: 45,
+    mode: "none",
+    days: new Set([1, 3, 5]),        // weekly
+    custom: { n: 1, unit: "week", days: new Set([1]) },
+  };
+
+  const $ = (sel) => document.querySelector(sel);
+
+  /* ---------- preview + payload ---------- */
+  function weeklyDaysOf(s) {
+    if (s.mode === "daily") return [1, 2, 3, 4, 5, 6, 7];
+    return [...s.days].sort((a, b) => a - b);
+  }
+
+  function previewFor() {
+    if (state.mode === "none") return "One-off — schedule it by hand on the calendar.";
+    if (state.mode === "daily") return "Repeats every day · 30 occurrences — Day 1 through Day 30";
+    if (state.mode === "weekly") {
+      const picked = weeklyDaysOf(state);
+      if (picked.length === 0) return "Repeats weekly — pick the days above";
+      const names = picked.map((d) => DOW_FULL[d - 1]).join(", ");
+      return `Repeats weekly on ${names} · ~${Math.round(30 * (picked.length / 7))} occurrences`;
+    }
+    const c = state.custom;
+    const label = `Repeats every ${c.n} ${c.unit}${c.n > 1 ? "s" : ""}`;
+    if (c.unit === "day") {
+      const days = [];
+      for (let d = 1; d <= TEMPLATE_DAYS; d += c.n) days.push(d);
+      return `${label} · ${days.length} occurrences — ${days.slice(0, 4).map((d) => `Day ${d}`).join(", ")}…`;
+    }
+    if (c.days.size === 0) return `${label} — pick the days below`;
+    const picked = [...c.days].sort((a, b) => a - b).map((d) => DOW_FULL[d - 1]).join(", ");
+    const days = [];
+    for (const w of c.days) for (let d = w; d <= TEMPLATE_DAYS; d += 7 * c.n) days.push(d);
+    days.sort((a, b) => a - b);
+    return `${label} on ${picked} · ${days.length} occurrences — ${days.slice(0, 4).map((d) => `Day ${d}`).join(", ")}…`;
+  }
+
+  function payloadFor() {
+    if (state.mode === "none") return { task: state.name || "(name)", frequency: null };
+    if (state.mode === "daily") return { task: state.name || "(name)", rule: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7] };
+    if (state.mode === "weekly") return { task: state.name || "(name)", rule: "weekly_days", daysOfWeek: weeklyDaysOf(state) };
+    const c = state.custom;
+    if (c.unit === "day") return { task: state.name || "(name)", rule: "interval_days", intervalDays: c.n };
+    return { task: state.name || "(name)", rule: "weekly_interval", weeksInterval: c.n, daysOfWeek: [...c.days].sort((a, b) => a - b) };
+  }
+
+  function render() {
+    $("#f-preview").textContent = previewFor();
+    $("#f-seg").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === state.mode));
+    $("#f-daysrow").style.display = state.mode === "weekly" ? "" : "none";
+    $("#f-custom").style.display = state.mode === "custom" ? "" : "none";
+  }
+
+  /* ---------- primitives ---------- */
+  $("#f-seg").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => {
+      state.mode = b.dataset.v;
+      render();
+      requestAnimationFrame(() => window.__sizeCustom?.());
+    }),
+  );
+
+  document.querySelectorAll("[data-dur]").forEach((b) =>
+    b.addEventListener("click", () => {
+      state.duration = Math.max(15, Math.min(240, state.duration + Number(b.dataset.dur)));
+      $("#f-duration").textContent = `${state.duration} min`;
+    }),
+  );
+
+  /* weekly day circles */
+  const daysRow = document.createElement("div");
+  daysRow.className = "flex items-center justify-center gap-2.5 text-sm";
+  daysRow.id = "f-daysrow";
+  const weeklyLabel = document.createElement("span");
+  weeklyLabel.className = "opacity-70";
+  weeklyLabel.textContent = "Repeat on";
+  daysRow.appendChild(weeklyLabel);
+  const weeklyCircles = document.createElement("div");
+  weeklyCircles.className = "flex gap-1.5";
+  daysRow.appendChild(weeklyCircles);
+  DOW.forEach((label, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "day-circle" + (state.days.has(i + 1) ? " on" : "");
+    b.textContent = label;
+    b.title = DOW_FULL[i];
+    b.addEventListener("click", () => {
+      if (state.days.has(i + 1)) state.days.delete(i + 1); else state.days.add(i + 1);
+      b.classList.toggle("on", state.days.has(i + 1));
+      render();
+    });
+    weeklyCircles.appendChild(b);
+  });
+  $("#f-freqpanel").appendChild(daysRow);
+
+  /* custom panel (Google-style) */
+  const customEl = document.createElement("div");
+  customEl.id = "f-custom";
+  $("#f-freqpanel").appendChild(customEl);
+  {
+    const c = state.custom;
+    customEl.className = "flex justify-center";
+    const wrap = document.createElement("div");
+    wrap.className = "inline-flex flex-col gap-2.5";
+    customEl.appendChild(wrap);
+    const row1 = document.createElement("div");
+    row1.className = "flex items-center justify-between gap-2.5 text-sm";
+    row1.innerHTML =
+      '<span>Repeat every</span>' +
+      '<span class="stepper"><button type="button">−</button><span class="val">1</span><button type="button">+</button></span>' +
+      '<select class="select select-sm" style="width: 6.5rem"><option value="day">day</option><option value="week" selected>week</option></select>';
+    wrap.appendChild(row1);
+    const nEl = row1.querySelector(".val");
+    row1.querySelectorAll(".stepper button").forEach((b) =>
+      b.addEventListener("click", () => {
+        c.n = Math.min(15, Math.max(1, c.n + (b.textContent === "+" ? 1 : -1)));
+        nEl.textContent = c.n;
+        render();
+      }),
+    );
+    row1.querySelector("select").addEventListener("change", (e) => {
+      c.unit = e.target.value;
+      sync();
+      render();
+    });
+    const row2 = document.createElement("div");
+    row2.className = "flex items-center gap-2.5 text-sm";
+    row2.innerHTML = '<span class="opacity-70">Repeat on</span>';
+    const circles = document.createElement("div");
+    circles.className = "flex gap-1.5";
+    row2.appendChild(circles);
+    wrap.appendChild(row2);
+    DOW.forEach((label, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "day-circle" + (c.days.has(i + 1) ? " on" : "");
+      b.textContent = label;
+      b.title = DOW_FULL[i];
+      b.addEventListener("click", () => {
+        if (c.days.has(i + 1)) c.days.delete(i + 1); else c.days.add(i + 1);
+        b.classList.toggle("on", c.days.has(i + 1));
+        render();
+      });
+      circles.appendChild(b);
+    });
+    function sync() {
+      row2.style.display = c.unit === "week" ? "" : "none";
+      size();
+    }
+    function size() {
+      if (customEl.style.display === "none") return;
+      wrap.style.width = "max-content";
+      row2.style.width = "max-content";
+      const w = row2.getBoundingClientRect().width;
+      row2.style.width = "";
+      if (w > 0) wrap.style.width = `${w}px`;
+      row1.style.width = "100%";
+    }
+    // expose for the mode switcher
+    window.__sizeCustom = size;
+    sync();
+  }
+
+  /* assignees */
+  const PEOPLE = [
+    { name: "Mom", color: "#e11d48", login: true },
+    { name: "Dad", color: "#0284c7", login: true },
+    { name: "Aria", color: "#d97706", login: false },
+  ];
+  const picked = new Set();
+  const pickRow = $("#f-assignees");
+  PEOPLE.forEach((p) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "assign-pick text-sm";
+    b.style.setProperty("--ppl-color", p.color);
+    b.innerHTML = `<span class="avatar-dot" style="background:${p.color}">${p.name[0]}</span><span class="font-medium">${p.name}</span>${p.login ? "" : '<span class="badge badge-xs badge-ghost">persona</span>'}`;
+    b.addEventListener("click", () => {
+      if (picked.has(p.name)) picked.delete(p.name); else picked.add(p.name);
+      b.classList.toggle("on", picked.has(p.name));
+    });
+    pickRow.appendChild(b);
+  });
+
+  /* save → show the mapped rule */
+  $("#f-save").addEventListener("click", () => {
+    state.name = $("#f-name").value.trim();
+    $("#f-saved").classList.remove("hidden");
+    $("#f-payload").textContent = JSON.stringify(payloadFor(), null, 2);
+  });
+  $("#f-reset").addEventListener("click", () => {
+    state.name = "";
+    state.mode = "none";
+    $("#f-name").value = "";
+    $("#f-saved").classList.add("hidden");
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>

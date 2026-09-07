@@ -12,6 +12,7 @@ const rule = (shape: Partial<Parameters<typeof occurrenceDays>[0]>) => ({
   ruleType: "none" as const,
   daysOfWeek: null,
   intervalDays: null,
+  weeksInterval: null,
   dayOfMonth: null,
   monthWeek: null,
   monthDow: null,
