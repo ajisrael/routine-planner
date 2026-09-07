@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en" data-theme="pastel">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Routine Planner - Guided Setup Wizard (refined plan)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/daisyui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/themes.css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.4/dist/index.global.js"></script>
+<style>
+  /* Pastel Dusk - custom dark palette (DESIGN.md §3.5) */
+  [data-theme="pasteldusk"] {
+    color-scheme: dark;
+    --color-base-100: #2b2b33;
+    --color-base-200: #24242b;
+    --color-base-300: #1d1d23;
+    --color-base-content: #eae8f2;
+    --color-primary: #b7a6ea;
+    --color-primary-content: #2b2b33;
+    --color-secondary: #93d6c6;
+    --color-secondary-content: #24242b;
+    --color-accent: #f4b6c5;
+    --color-accent-content: #44232a;
+    --color-neutral: #3d3d47;
+    --color-neutral-content: #eae8f2;
+    --color-info: #9cc7e8;
+    --color-info-content: #1d3a52;
+    --color-success: #a3d4ae;
+    --color-success-content: #21402a;
+    --color-warning: #ecd3a0;
+    --color-warning-content: #4a3a1e;
+    --color-error: #e89da8;
+    --color-error-content: #44232a;
+    --radius-selector: 0.5rem;
+    --radius-field: 0.5rem;
+    --radius-box: 1rem;
+    --border: 1px;
+    --depth: 1;
+    --noise: 0;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  :where(.grid, .flex) > * { min-width: 0; }
+  :where(p, h1, h2, h3, h4, h5, h6, li, dd, blockquote, figcaption, td, th, .badge, .label) { overflow-wrap: anywhere; }
+  :where(img, svg, video, canvas, iframe) { max-width: 100%; height: auto; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+  .mock-week-col { min-height: 150px; }
+  .ev-block { border-radius: .45rem; border-left: 4px solid; padding: 2px 6px; font-size: 11px; line-height: 1.25; }
+</style>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs";
+  const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const paint = document.createElement("canvas").getContext("2d");
+  function toRgba(color) {
+    paint.clearRect(0, 0, 1, 1);
+    paint.fillStyle = "#000";
+    paint.fillStyle = color;
+    paint.fillRect(0, 0, 1, 1);
+    return paint.getImageData(0, 0, 1, 1).data;
+  }
+  function compositeRgba(foreground, background) {
+    const f = foreground[3] / 255, b = background[3] / 255, a = f + b * (1 - f);
+    if (a === 0) return [0, 0, 0, 0];
+    return [
+      (foreground[0] * f + background[0] * b * (1 - f)) / a,
+      (foreground[1] * f + background[1] * b * (1 - f)) / a,
+      (foreground[2] * f + background[2] * b * (1 - f)) / a,
+      a * 255,
+    ];
+  }
+  function pageIsDark() {
+    const root = document.documentElement;
+    const rootBg = toRgba(getComputedStyle(root).backgroundColor);
+    const bodyBg = document.body ? toRgba(getComputedStyle(document.body).backgroundColor) : [0, 0, 0, 0];
+    const [r, g, b, a] = compositeRgba(bodyBg, rootBg);
+    if (a > 0) return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+    const cs = getComputedStyle(root).colorScheme;
+    if (cs.includes("dark") && !cs.includes("light")) return true;
+    if (cs.includes("light") && !cs.includes("dark")) return false;
+    return darkQuery.matches;
+  }
+  const diagrams = [...document.querySelectorAll(".mermaid")].map((el) => ({ el, src: el.textContent }));
+  let applied, rendering = false, queued = false;
+  function queueRender() { queued = true; if (!rendering) void render(); }
+  async function render() {
+    rendering = true;
+    try {
+      while (queued) {
+        queued = false;
+        const theme = pageIsDark() ? "dark" : "default";
+        if (theme === applied) continue;
+        mermaid.initialize({ startOnLoad: false, theme, securityLevel: "strict" });
+        for (const { el, src } of diagrams) { el.removeAttribute("data-processed"); el.textContent = src; }
+        try { await mermaid.run({ nodes: diagrams.map((d) => d.el) }); } catch (error) { console.error(error); return; }
+        applied = theme;
+      }
+    } finally { rendering = false; if (queued) queueRender(); }
+  }
+  if (document.readyState === "complete") queueRender();
+  else window.addEventListener("load", queueRender, { once: true });
+  const observer = new MutationObserver(queueRender);
+  for (const el of [document.documentElement, document.body]) {
+    if (el) observer.observe(el, { attributes: true, attributeFilter: ["data-theme", "class", "style"] });
+  }
+  document.addEventListener("change", queueRender, true);
+  document.addEventListener("transitionend", ({ propertyName }) => { if (propertyName === "background-color") queueRender(); }, true);
+  darkQuery.addEventListener("change", queueRender);
+</script>
+</head>
+<body class="bg-base-200 text-base-content min-h-screen">
+<script>
+  document.getElementById && document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("theme-toggle");
+    btn && btn.addEventListener("click", () => {
+      const root = document.documentElement;
+      root.dataset.theme = root.dataset.theme === "pasteldusk" ? "pastel" : "pasteldusk";
+    });
+  });
+</script>
+
+<header class="sticky top-0 z-40 bg-base-100/90 backdrop-blur border-b border-base-content/10">
+  <div class="max-w-[1200px] mx-auto px-4 lg:px-8 py-3 flex items-center gap-3">
+    <div class="flex-1 min-w-0">
+      <p class="kicker opacity-60">Refined plan - for review, before implementation</p>
+      <h1 class="text-lg lg:text-2xl font-bold leading-tight">Routine Planner: guided routine setup wizard</h1>
+    </div>
+    <button id="theme-toggle" class="btn btn-sm btn-ghost btn-square" aria-label="Toggle theme">🌓</button>
+  </div>
+</header>
+
+<main class="max-w-[1200px] mx-auto px-4 lg:px-8 py-6 flex flex-col gap-8">
+
+  <!-- 0. TL;DR -->
+  <section>
+    <h2 class="text-xl font-bold mb-1">At a glance</h2>
+    <div class="grid gap-3 md:grid-cols-3">
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <p class="kicker opacity-60 mb-1">Why</p>
+          <p class="text-sm">The app today starts with a blank task library, three full-featured tabs, and no guided path. Building a whole family routine is a single open-ended task instead of a step-by-step flow.</p>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <p class="kicker opacity-60 mb-1">Idea</p>
+          <p class="text-sm">Wrap creation in a guided setup wizard: who is involved, then one cadence at a time - daily, weekly, monthly - define the tasks, then arrange them on the matching timeline until the whole 30-day routine exists. Afterwards, the current app manages it.</p>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <p class="kicker opacity-60 mb-1">Refined core</p>
+          <p class="text-sm">The wizard is not a separate data flow. It is a <b>guided view over the same data</b> (same store, same rules, same events), so it is resumable by construction and safe to rerun at any time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. Goal -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Goal &amp; problem statement</h2>
+    <div class="card card-border bg-base-100">
+      <div class="card-body p-5">
+        <p class="text-sm mb-3"><b>Problem.</b> Starting a routine from scratch means juggling dozens of recurring tasks across three time scales at once, on a blank calendar. Families get overwhelmed before they place a single event.</p>
+        <p class="text-sm"><b>Goal.</b> A guided, step-by-step creation flow that breaks "build the month" into small, scoped decisions - people, then daily, then weekly, then monthly - each step writing real, persisted routine data. When done, the user owns a full 30-day template and manages it with the existing Tasks / Plan / View flow.</p>
+        <ul class="mt-3 flex flex-col gap-1.5 text-sm">
+          <li>🎯 Guide, do not fork - every action writes the same data the normal app reads.</li>
+          <li>🔁 Resumable - the wizard derives its state from stored data, so stopping mid-way and coming back later shows exactly where things stand.</li>
+          <li>👨‍👩‍👧 Any user can build it - the existing real-time sync works unchanged inside the wizard.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Locked decisions -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Decisions locked in</h2>
+    <div class="grid gap-3 md:grid-cols-3">
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <span class="badge badge-soft badge-primary self-start mb-2">1</span>
+          <h3 class="font-bold text-sm">Cadence is a task field</h3>
+          <p class="text-sm mt-1">Tasks get a dedicated <code class="badge badge-ghost font-mono">cadence</code> column (daily / weekly / monthly / custom). Categories stay free-form for grouping and color.</p>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <span class="badge badge-soft badge-primary self-start mb-2">2</span>
+          <h3 class="font-bold text-sm">Wizard is a view, resumable</h3>
+          <p class="text-sm mt-1">Always-reachable "Setup" surface that auto-opens on first run. It reads and writes the same tasks/rules/events, so it resumes from stored data and never duplicates or conflicts with Plan/View.</p>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <span class="badge badge-soft badge-primary self-start mb-2">3</span>
+          <h3 class="font-bold text-sm">Personas removed</h3>
+          <p class="text-sm mt-1">All users can log in by name. Any user can create other users (e.g. Dad, or a child with their own login). Kills <code class="badge badge-ghost font-mono">is_login_user</code> and the persona concept.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Wizard as a view -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">How the wizard fits the app</h2>
+    <p class="text-sm opacity-70 max-w-3xl mb-3">The Setup surface is a fourth tab next to Tasks / Plan / View. On first run (no tasks in the store) the app lands there. Every stage writes via the same store actions the existing tabs use - so the "wizard" is a guided way of visualizing the same routine data, not a separate pipeline.</p>
+    <div class="card card-border bg-base-100">
+      <div class="card-body p-5 overflow-x-auto">
+        <pre class="mermaid">
+flowchart LR
+  A["Login (name entry)"] --> B{"Any tasks yet?"}
+  B -- "first run" --> C["Setup tab auto-opens"]
+  B -- "has a routine" --> E["Standard app · Tasks / Plan / View"]
+  C --> S1["Step 1 · People<br/>who is in the routine"]
+  S1 --> S2["Step 2 · Daily<br/>define, then arrange on a single-day timeline"]
+  S2 --> S3["Step 3 · Weekly<br/>define, then arrange on the week grid<br/>(daily tasks carried over)"]
+  S3 --> S4["Step 4 · Monthly<br/>define, then place on the 30-day month<br/>(date pick, then hourly slot)"]
+  S4 --> D["Finish · land on View<br/>the full 30-day routine"]
+  E -->|"Setup tab anytime"| C
+  C -.->|"skip / any time"| E
+        </pre>
+        <p class="text-[11px] opacity-50 mt-1">Everything inside dotted "Setup" writes the same collections: tasks, recurrence_rules, scheduled_events, users, assignees.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Setup hub + resume -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">The Setup hub: progress from stored data</h2>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div>
+        <p class="text-sm opacity-70 mb-3">The hub is the wizard's landing page. It derives each stage's status from the store - no extra flags, no wizard persistence table. Clicking a stage opens it; Back / Next walk the steps in order.</p>
+        <div class="card card-border bg-base-100 mb-4">
+          <div class="card-body p-4">
+            <p class="kicker opacity-60 mb-2">Status derivations (from store data)</p>
+            <ul class="text-sm flex flex-col gap-1.5">
+              <li><b>People</b> - always complete (you are already a member).</li>
+              <li><b>Daily</b> - count of tasks with <code class="badge badge-ghost font-mono">cadence=daily</code>; "placed" when a rule + events exist.</li>
+              <li><b>Weekly</b> - count of <code class="badge badge-ghost font-mono">cadence=weekly</code> tasks; placed when the rule spans ≥1 weekday.</li>
+              <li><b>Monthly</b> - count of <code class="badge badge-ghost font-mono">cadence=monthly</code>; placed when <code class="badge badge-ghost font-mono">monthly_date</code> is set.</li>
+            </ul>
+            <p class="text-[11px] opacity-50 mt-2">Skip a scale freely - not every family has monthly tasks. Finish is enabled with everything unreachable skipped.</p>
+          </div>
+        </div>
+        <div class="card card-border bg-base-100">
+          <div class="card-body p-4 overflow-x-auto">
+            <div class="badge badge-soft badge-primary mb-2">Static mock - Setup hub</div>
+            <div class="grid gap-2 sm:grid-cols-2">
+              <div class="rounded-xl bg-base-200 border border-base-content/10 p-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-sm">1 · People</span>
+                  <span class="badge badge-success badge-soft badge-sm">done</span>
+                </div>
+                <p class="text-[11px] opacity-60 mt-1">Mom, Dad seen; add more</p>
+              </div>
+              <div class="rounded-xl bg-base-200 border border-base-content/10 p-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-sm">2 · Daily</span>
+                  <span class="badge badge-soft badge-sm">4 defined · 2 placed</span>
+                </div>
+                <p class="text-[11px] opacity-60 mt-1">Back to single-day timeline</p>
+              </div>
+              <div class="rounded-xl bg-base-200 border border-base-content/10 p-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-sm">3 · Weekly</span>
+                  <span class="badge badge-soft badge-sm">2 defined · 0 placed</span>
+                </div>
+                <p class="text-[11px] opacity-60 mt-1">Open the week grid</p>
+              </div>
+              <div class="rounded-xl bg-base-200 border border-base-content/10 p-3">
+                <div class="flex items-center justify-between">
+                  <span class="font-semibold text-sm">4 · Monthly</span>
+                  <span class="badge badge-ghost badge-sm">empty</span>
+                </div>
+                <p class="text-[11px] opacity-60 mt-1">Skip or plan now</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="text-sm opacity-70 mb-3">Each stage is two small panes: <b>Define</b> (add/rename/remove tasks of that cadence with a slim form) and <b>Arrange</b> (the timeline that places them). Adding tasks mid-arrange is supported, exactly as you described.</p>
+        <div class="card card-border bg-base-100">
+          <div class="card-body p-4 overflow-x-auto">
+            <div class="badge badge-soft badge-primary mb-2">Static mock - weekly stage, arrange pane</div>
+            <div class="join mb-2">
+              <button class="btn btn-sm join-item">1 · Define</button>
+              <button class="btn btn-sm join-item btn-primary">2 · Arrange</button>
+            </div>
+            <div class="flex gap-2 flex-wrap mb-3">
+              <span class="badge badge-ghost border-base-content/10">Garbage out</span>
+              <span class="badge badge-ghost border-base-content/10">Piano</span>
+              <span class="badge badge-primary badge-soft">+ Add weekly task</span>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] opacity-60 mb-1">
+              <span>Mon 1</span><span>Tue 2</span><span>Wed 3</span><span>Thu 4</span><span>Fri 5</span><span>Sat 6</span><span>Sun 7</span>
+            </div>
+            <div class="rounded-box border border-base-content/10 overflow-hidden">
+              <div class="grid grid-cols-7">
+                <div class="mock-week-col col-span-1 border-r border-base-content/5 relative bg-base-200/40">
+                  <span class="ev-block absolute top-4 left-1 right-1" style="background:color-mix(in oklch,#84cc16 16%,var(--color-base-100));border-color:#84cc16">08:00 Breakfast</span>
+                  <span class="ev-block absolute top-14 left-1 right-1" style="background:color-mix(in oklch,#0ea5e9 16%,var(--color-base-100));border-color:#0ea5e9">09:00 School run</span>
+                  <span class="ev-block absolute top-24 left-1 right-1 bg-primary/20" style="border-color:var(--color-primary)">16:00 Piano</span>
+                </div>
+                <div class="mock-week-col col-span-1 border-r border-base-content/5 relative bg-base-200/40">
+                  <span class="ev-block absolute top-4 left-1 right-1" style="background:color-mix(in oklch,#84cc16 16%,var(--color-base-100));border-color:#84cc16">08:00 Breakfast</span>
+                  <span class="ev-block absolute top-14 left-1 right-1" style="background:color-mix(in oklch,#0ea5e9 16%,var(--color-base-100));border-color:#0ea5e9">09:00 School run</span>
+                </div>
+                <div class="mock-week-col col-span-1 border-r border-base-content/5 relative bg-base-200/40">
+                  <span class="ev-block absolute top-4 left-1 right-1" style="background:color-mix(in oklch,#84cc16 16%,var(--color-base-100));border-color:#84cc16">08:00 Breakfast</span>
+                  <span class="ev-block absolute top-14 left-1 right-1" style="background:color-mix(in oklch,#0ea5e9 16%,var(--color-base-100));border-color:#0ea5e9">09:00 School run</span>
+                </div>
+                <div class="mock-week-col col-span-1 border-r border-base-content/5 relative bg-base-200/40">
+                  <span class="ev-block absolute top-4 left-1 right-1" style="background:color-mix(in oklch,#84cc16 16%,var(--color-base-100));border-color:#84cc16">08:00 Breakfast</span>
+                  <span class="ev-block absolute top-14 left-1 right-1" style="background:color-mix(in oklch,#0ea5e9 16%,var(--color-base-100));border-color:#0ea5e9">09:00 School run</span>
+                  <span class="ev-block absolute top-24 left-1 right-1 opacity-40 border-dashed" style="border-color:var(--color-primary)">&nbsp;Garbage out drop hint</span>
+                </div>
+                <div class="mock-week-col col-span-1 border-r border-base-content/5 relative bg-base-200/40">
+                  <span class="ev-block absolute top-4 left-1 right-1" style="background:color-mix(in oklch,#84cc16 16%,var(--color-base-100));border-color:#84cc16">08:00 Breakfast</span>
+                  <span class="ev-block absolute top-14 left-1 right-1" style="background:color-mix(in oklch,#0ea5e9 16%,var(--color-base-100));border-color:#0ea5e9">09:00 School run</span>
+                </div>
+                <div class="mock-week-col col-span-1 border-r border-base-content/5 relative bg-base-200/40">
+                  <span class="ev-block absolute top-6 left-1 right-1" style="background:color-mix(in oklch,#84cc16 16%,var(--color-base-100));border-color:#84cc16">09:00 Breakfast</span>
+                  <span class="ev-block absolute top-24 left-1 right-1" style="background:color-mix(in oklch,#f43f5e 16%,var(--color-base-100));border-color:#f43f5e">13:00 Playtime</span>
+                </div>
+                <div class="mock-week-col col-span-1 relative bg-base-200/40">
+                  <span class="ev-block absolute top-6 left-1 right-1" style="background:color-mix(in oklch,#84cc16 16%,var(--color-base-100));border-color:#84cc16">09:00 Breakfast</span>
+                </div>
+              </div>
+            </div>
+            <p class="text-[11px] opacity-50 mt-2">Daily events (lime/sky/rose) are already generated and carried over in read-only. The dashed hint shows a weekly placement snapping to its reference time.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Data model -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Data model changes</h2>
+    <div class="card card-border bg-base-100">
+      <div class="card-body p-4 overflow-x-auto">
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead>
+              <tr><th>Table</th><th>Change</th><th>Why</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="badge badge-ghost font-mono">tasks</code></td>
+                <td class="min-w-0">Add <code class="badge badge-ghost font-mono">cadence TEXT NOT NULL DEFAULT 'custom' CHECK (cadence IN ('daily','weekly','monthly','custom'))</code></td>
+                <td class="min-w-0">First-class grouping for the wizard and the Tasks-tab segmentation. Custom preserves today's free-form recurrence for everything else.</td>
+              </tr>
+              <tr>
+                <td><code class="badge badge-ghost font-mono">users</code></td>
+                <td class="min-w-0">Rebuild table: drop <code class="badge badge-ghost font-mono">is_login_user</code>; <code class="badge badge-ghost font-mono">username TEXT NOT NULL UNIQUE</code>. Backfill NULL usernames from display_name (lowercased, de-duped).</td>
+                <td class="min-w-0">Everything can log in; no personas. Assignments (task_assignees) are untouched by the rebuild.</td>
+              </tr>
+              <tr>
+                <td><code class="badge badge-ghost font-mono">recurrence_rules</code></td>
+                <td class="min-w-0">No change</td>
+                <td class="min-w-0">weekly_days / monthly_date already express everything the wizard needs.</td>
+              </tr>
+              <tr>
+                <td><code class="badge badge-ghost font-mono">scheduled_events</code></td>
+                <td class="min-w-0">No change</td>
+                <td class="min-w-0">Materialized occurrences stay the source of truth.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-[11px] opacity-50 mt-3">Shared types: <code class="font-mono">Task</code> gains <code class="font-mono">cadence</code> + new exported <code class="font-mono">TaskCadence</code>; <code class="font-mono">User</code> drops <code class="font-mono">isLoginUser</code>, <code class="font-mono">username</code> becomes required. Entities <code class="font-mono">users</code> remain in the same snapshot/realtime collections - the wire protocol shape changes only for those fields.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Arrange behavioral contract -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Arrange-step behavioral contract</h2>
+    <p class="text-sm opacity-70 max-w-3xl mb-3">The arrange canvases treat placement as <b>pattern editing</b>: a move updates the task's recurrence rule and regenerates its materialized events (same semantics as the existing "change frequency" path - PUT /api/tasks/:id/recurrence with a refStartMinute carries it). After setup, per-day tweaks happen instance-first in the Plan tab.</p>
+    <div class="grid gap-4 lg:grid-cols-3">
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <span class="badge badge-soft badge-success self-start mb-2">Daily single-day</span>
+          <ul class="text-sm flex flex-col gap-1.5 list-disc pl-4">
+            <li>Canvas: one representative day (Day 1).</li>
+            <li>Place task → rule <code class="badge badge-ghost font-mono">weekly_days [1-7]</code>, ref time = drop.</li>
+            <li>Every subsequent move updates ref time and regenerates all 30 occurrences.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <span class="badge badge-soft badge-success self-start mb-2">Weekly week grid</span>
+          <ul class="text-sm flex flex-col gap-1.5 list-disc pl-4">
+            <li>Canvas: week 1 (Mon-Sun), daily events carried over read-only.</li>
+            <li>Place unplaced task on a day → first drop sets ref time, day added.</li>
+            <li>Drop same task on another day → adds that weekday at the same ref time (drop Y ignored, ghost shows the time).</li>
+            <li>Drag a block to a new time in same column → ref time updates.</li>
+            <li>Drag a block to a different day → that weekday replaces the old one.</li>
+            <li>Drop a block on the rail → removes that weekday; none left → rule "none".</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <span class="badge badge-soft badge-success self-start mb-2">Monthly month grid</span>
+          <ul class="text-sm flex flex-col gap-1.5 list-disc pl-4">
+            <li>Canvas: full 30 days with everything placed so far.</li>
+            <li>Tap a monthly task → tap a date cell → that day's hourly view opens with the task armed.</li>
+            <li>Drop at an hour → <code class="badge badge-ghost font-mono">monthly_date [that day]</code> + ref time.</li>
+            <li>Click a placed block → returns to the day view to reposition.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="card card-border bg-base-100 mt-4">
+      <div class="card-body p-4 overflow-x-auto">
+        <pre class="mermaid">
+flowchart TD
+  P["Arrange canvas drag / tap"] --> R{"Task already has a rule?"}
+  R -- "no" --> C["create rule for the cadence<br/>ref time = first placement"]
+  R -- "yes" --> K{"What gesture?"}
+  K -- "same day, new time" --> T["update ref time · regenerate"]
+  K -- "new weekday" --> D["add weekday (weekly)<br/>or new date (monthly) · regenerate"]
+  K -- "different weekday" --> S["replace weekday (weekly)<br/>or change date (monthly)"]
+  K -- "drop onto rail" --> B["remove weekday · regenerate<br/>if none left, rule -> none"]
+  D --> W["PUT /api/tasks/:id/recurrence<br/>with refStartMinute"]
+  S --> W
+  T --> W
+  B --> W
+  C --> W
+        </pre>
+        <p class="text-[11px] opacity-50 mt-1">One existing endpoint drives every placement; the regeneration engine (shared recurrence) already idempotently rewrites rule-linked events.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Reuse vs new -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Component reuse vs new work</h2>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4 overflow-x-auto">
+          <p class="kicker opacity-60 mb-2">Reused as-is or lightly extended</p>
+          <table class="table table-sm">
+            <thead><tr><th>Piece</th><th>Role in wizard</th></tr></thead>
+            <tbody>
+              <tr><td><code class="badge badge-ghost font-mono">TimeGrid</code></td><td class="min-w-0">Daily single-day and monthly hourly canvases.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">MonthGrid</code></td><td class="min-w-0">30-day monthly canvas.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">LibraryRail</code> (scoped)</td><td class="min-w-0">Task list per cadence; bar drop-to-remove.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">Assignee/Category pickers</code></td><td class="min-w-0">Inside the slim quick-add form.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">store actions</code></td><td class="min-w-0">createTask / setRecurrence / moveEvent etc. unchanged.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">realtime</code></td><td class="min-w-0">Setup mutations broadcast like any other.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4 overflow-x-auto">
+          <p class="kicker opacity-60 mb-2">New or rewritten</p>
+          <table class="table table-sm">
+            <thead><tr><th>Piece</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code class="badge badge-ghost font-mono">SetupView</code> (new tab)</td><td class="min-w-0">Hub + stepper over the stages.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">PeopleStage</code></td><td class="min-w-0">Wrapped user manager (create login users).</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">Daily/Weekly/MonthlyStage</code></td><td class="min-w-0">Define + arrange panes per cadence.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">QuickAddTask</code> (slim)</td><td class="min-w-0">Name, duration, assignees, category, notes - cadence implied by the stage.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">pattern helpers</code></td><td class="min-w-0">Place-move-remove → rule diff + regenerate.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">TaskForm</code> (rewrite)</td><td class="min-w-0">Cadence-first frequency UI, also used in Tasks tab.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">UserManager</code> (rewrite)</td><td class="min-w-0">Personas out; add login user by name.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Tasks tab + TaskForm -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Tasks tab &amp; task form rework</h2>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <p class="kicker opacity-60 mb-2">Tasks tab: cadence segments</p>
+          <ul class="text-sm flex flex-col gap-1.5 list-disc pl-4">
+            <li>Lead with a segmented control: <b>All · Daily · Weekly · Monthly · Other</b>.</li>
+            <li>Category filter chips stay as a secondary filter.</li>
+            <li>Cards gain a cadence badge ("Daily", "Weekly", "Monthly", "Custom"); the existing rule and "unscheduled" badges remain.</li>
+            <li>"Other" = cadence <code class="badge badge-ghost font-mono">custom</code> (interval, one-offs, anything non-template).</li>
+            <li>Deleting a task still cascades to its rule + events.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <p class="kicker opacity-60 mb-2">TaskForm: cadence-first</p>
+          <ul class="text-sm flex flex-col gap-1.5 list-disc pl-4">
+            <li>Top segment: <b>Daily / Weekly / Monthly / Custom</b> - it controls the recurrence section that follows.</li>
+            <li>Daily → ref time only. Weekly → Mon-Sun toggles + ref time. Monthly → template day + ref time. Custom → today's full options (one-off, every-N-days).</li>
+            <li>Cadence and rule always agree because the segment drives the rule inputs.</li>
+            <li>The wizard quick-add is this form pre-scoped to the stage cadence.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. API -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Server &amp; API changes</h2>
+    <div class="card card-border bg-base-100">
+      <div class="card-body p-4 overflow-x-auto">
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead><tr><th>Endpoint</th><th>Change</th></tr></thead>
+            <tbody>
+              <tr><td><code class="badge badge-ghost font-mono">POST /api/users</code></td><td class="min-w-0">Create a login user: <code class="font-mono">{username, displayName}</code>. 409 on duplicate username.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">PUT/DELETE /api/users/:id</code></td><td class="min-w-0">Rename/update username; delete guarded against self-delete (and surfaced assignment-count warning in UI).</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">POST /api/auth/login</code></td><td class="min-w-0">Unchanged find-or-create; rows no longer carry is_login_user.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">GET /api/auth/me</code></td><td class="min-w-0">Drops the <code class="font-mono">is_login_user = 1</code> filter in <code class="font-mono">auth.ts currentUser()</code>.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">POST/PUT /api/tasks</code></td><td class="min-w-0">Accept, persist and return <code class="font-mono">cadence</code>.</td></tr>
+              <tr><td><code class="badge badge-ghost font-mono">PUT /api/tasks/:id/recurrence</code></td><td class="min-w-0">No change - already the wizard's pattern-setter (rule + refStartMinute → regenerate).</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. Phases -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Implementation phases</h2>
+    <div class="flex flex-col gap-3">
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <div class="flex flex-wrap items-center gap-2"><span class="badge badge-primary badge-soft">P1</span><h3 class="font-bold text-sm">Foundation: data + API</h3></div>
+        <ul class="text-xs mt-2 flex flex-col gap-1 list-disc pl-4 opacity-80">
+          <li>Migration 002 (users rebuild + tasks.cadence), shared types, rows mapping, users/auth/tasks routes, store &amp; API client.</li>
+          <li>Tests: migration backfill (persona → unique username), users CRUD + self-delete guard, cadence round-trip.</li>
+        </ul>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <div class="flex flex-wrap items-center gap-2"><span class="badge badge-primary badge-soft">P2</span><h3 class="font-bold text-sm">TaskForm cadence-first + Tasks tab segments + People manager</h3></div>
+        <ul class="text-xs mt-2 flex flex-col gap-1 list-disc pl-4 opacity-80">
+          <li>Form segments drive the rule inputs; Tasks tab cadence segments; UserManager → People (add login user, self-delete guard); Welcome copy loses persona footnote.</li>
+          <li>Tests: form payload mapping, TasksView filters.</li>
+        </ul>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <div class="flex flex-wrap items-center gap-2"><span class="badge badge-primary badge-soft">P3</span><h3 class="font-bold text-sm">Setup tab shell + hub + gating</h3></div>
+        <ul class="text-xs mt-2 flex flex-col gap-1 list-disc pl-4 opacity-80">
+          <li>Fourth tab; auto-open on first run (no tasks) after login; hub stage status derived from store.</li>
+        </ul>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <div class="flex flex-wrap items-center gap-2"><span class="badge badge-primary badge-soft">P4</span><h3 class="font-bold text-sm">Daily stage</h3></div>
+        <ul class="text-xs mt-2 flex flex-col gap-1 list-disc pl-4 opacity-80">
+          <li>Define (quick-add) + arrange single-day timeline; place/move = weekly_days[1-7] pattern.</li>
+        </ul>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <div class="flex flex-wrap items-center gap-2"><span class="badge badge-primary badge-soft">P5</span><h3 class="font-bold text-sm">Weekly stage</h3></div>
+        <ul class="text-xs mt-2 flex flex-col gap-1 list-disc pl-4 opacity-80">
+          <li>Week-1 grid with daily events carried over; add/replace/remove weekday semantics in the pure helpers.</li>
+          <li>Tests: table-driven helper cases (add day, replace day, remove day, time adoption).</li>
+        </ul>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <div class="flex flex-wrap items-center gap-2"><span class="badge badge-primary badge-soft">P6</span><h3 class="font-bold text-sm">Monthly stage</h3></div>
+        <ul class="text-xs mt-2 flex flex-col gap-1 list-disc pl-4 opacity-80">
+          <li>30-day month grid → tap date → day hourly view; place/move = monthly_date pattern.</li>
+        </ul>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <div class="flex flex-wrap items-center gap-2"><span class="badge badge-primary badge-soft">P7</span><h3 class="font-bold text-sm">Polish &amp; end-to-end</h3></div>
+        <ul class="text-xs mt-2 flex flex-col gap-1 list-disc pl-4 opacity-80">
+          <li>First-run dismissal, conflict toasts, empty states, touch (tap-to-place) fallback, pastel/pasteldusk pass.</li>
+          <li>E2E: run the whole wizard in a browser, verify data lands in Tasks/Plan/View and survives a reload (resume).</li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 11. Risks + limitations -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Risks &amp; documented limitations</h2>
+    <div class="grid gap-3 md:grid-cols-2">
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <span class="badge badge-soft badge-warning self-start mb-1">Regeneration wipes instance tweaks</span>
+        <p class="text-sm mt-1">Re-arranging a placed pattern in the wizard regenerates rule-linked events (existing v1 behavior, DATA_MODEL 5.3). Mitigation: confirm when a drag would rewrite a task that already has multiple events ("Update every occurrence of X?").</p>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <span class="badge badge-soft badge-warning self-start mb-1">Weekly = one reference time</span>
+        <p class="text-sm mt-1">A weekly task runs at the same time on every selected day (the engine's single reference time). Families that need per-day hours fine-tune individual occurrences in the Plan tab afterwards (instance-first is already supported).</p>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <span class="badge badge-soft badge-warning self-start mb-1">Monthly = one template day</span>
+        <p class="text-sm mt-1">The wizard's monthly step places each monthly task on a single template day (monthly_date). A "1st and 15th" need becomes two tasks, or a second occurrence added manually later.</p>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <span class="badge badge-soft badge-warning self-start mb-1">Persona migration</span>
+        <p class="text-sm mt-1">Existing persona rows become full login users with a backfilled username. Task assignments survive (task_assignees keyed by user id, not by type). Communication is needed so nobody is surprised the kids can now log in.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- 12. Open choices -->
+  <section>
+    <h2 class="text-xl font-bold mb-2">Two small open choices (annotate to decide)</h2>
+    <div class="grid gap-3 md:grid-cols-2">
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <h3 class="font-bold text-sm">Setup in the navbar</h3>
+        <p class="text-sm mt-1"><b>Recommended:</b> a fourth tab after View (Tasks · Plan · View · Setup). First run lands there automatically.</p>
+        <p class="text-xs opacity-60 mt-2">Alternative: a primary "Set up routine" button that opens the wizard full-screen, leaving three tabs.</p>
+      </div></div>
+      <div class="card card-border bg-base-100"><div class="card-body p-4">
+        <h3 class="font-bold text-sm">First-run hand-off</h3>
+        <p class="text-sm mt-1"><b>Recommended:</b> auto-open Setup when the store has no tasks after login; explicit "Skip for now" falls back to the Tasks tab (Setup stays one click away).</p>
+        <p class="text-xs opacity-60 mt-2">Alternative: keep the app landing on Tasks and show a prompt to start the wizard.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <footer class="text-[11px] opacity-50 pb-6">
+    Grounded in: <code class="font-mono">DATA_MODEL.md</code>, <code class="font-mono">DESIGN.md</code>, <code class="font-mono">web/src/views/PlanView.tsx</code>, <code class="font-mono">web/src/components/taskForm/TaskForm.tsx</code>, <code class="font-mono">web/src/store/index.ts</code>, <code class="font-mono">shared/src/index.ts</code>, <code class="font-mono">server/src/routes/users.ts</code>, <code class="font-mono">server/src/routes/auth.ts</code>. The wizard adds no endpoints beyond cadence pass-through; it composes existing TimeGrid / MonthGrid / LibraryRail / store actions.
+  </footer>
+</main>
+</body>
+</html>
