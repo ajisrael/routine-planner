@@ -42,6 +42,7 @@ export interface TaskRulePayload {
   ruleType: RecurrenceRuleType;
   daysOfWeek?: number[] | null;
   intervalDays?: number | null;
+  weeksInterval?: number | null;
   dayOfMonth?: number | null;
   monthWeek?: number | null;
   monthDow?: number | null;

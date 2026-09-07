@@ -1,68 +1,130 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { RecurrenceRuleType, ScheduledEvent, Task, TaskCadence } from "@planner/shared";
-import { describeRule, occurrenceDays, TEMPLATE_DAYS } from "@planner/shared";
-import type { RuleShape } from "@planner/shared";
+import type { RecurrenceRule, ScheduledEvent, Task, TaskCadence, RuleShape } from "@planner/shared";
+import { occurrenceDays, TEMPLATE_DAYS } from "@planner/shared";
 import { usePlannerStore, assigneesOfTask } from "../../store";
 import type { TaskRulePayload } from "../../api/client";
 import { toast } from "../../store/toasts";
+import { fmtTime, dayNumber, DOW_LABELS } from "../../lib/dates";
+import { AvatarStack } from "../Avatar";
 import { CategoryPickerDialog } from "../CategoryPickerDialog";
 import { AssigneePickerDialog } from "../AssigneePickerDialog";
-import { AvatarStack } from "../Avatar";
 
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 7];
-const DOW_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
 const DOW_LONG = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export const CADENCE_OPTIONS: Array<{ value: TaskCadence; label: string }> = [
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "custom", label: "Custom" },
-];
+type FreqMode = "none" | "daily" | "weekly" | "custom";
+
+interface FreqState {
+  mode: FreqMode;
+  days: Set<number>;
+  customN: number;
+  customUnit: "day" | "week";
+  customDays: Set<number>;
+}
 
 interface FormState {
   name: string;
   duration: number;
   categoryId: number | null;
   assignees: Set<number>;
+  /** Guided-setup grouping (mirrors Task.cadence). */
   cadence: TaskCadence;
-  ruleType: RecurrenceRuleType;
-  daysOfWeek: Set<number>;
-  intervalDays: number;
-  dayOfMonth: number;
+  freq: FreqState;
   notes: string;
 }
 
-/** Effective recurrence implied by the cadence (placement defines the time). */
-function rulePayload(s: FormState): RuleShape {
-  const daily = s.cadence === "daily";
-  const weekly = s.cadence === "weekly";
-  const monthly = s.cadence === "monthly";
-  const type: RecurrenceRuleType = daily || weekly ? "weekly_days" : monthly ? "monthly_date" : s.ruleType;
-  const days =
-    type === "weekly_days" ? (daily ? DOW_ORDER : DOW_ORDER.filter((d) => s.daysOfWeek.has(d))) : null;
-  return {
-    ruleType: type,
-    daysOfWeek: days,
-    intervalDays: type === "interval_days" ? Math.max(1, Math.round(s.intervalDays)) : null,
-    dayOfMonth: type === "monthly_date" ? s.dayOfMonth : null,
-    monthWeek: null,
-    monthDow: null,
-    startDate: "01",
-  };
+/** Cadence implied by the approved frequency modes. */
+function cadenceFor(freq: FreqState): TaskCadence {
+  return freq.mode === "daily" ? "daily" : freq.mode === "weekly" ? "weekly" : "custom";
 }
 
-function sameRule(a: TaskRulePayload, b: TaskRulePayload): boolean {
-  const key = (r: TaskRulePayload): string =>
-    JSON.stringify([r.ruleType, [...(r.daysOfWeek ?? [])].sort(), r.intervalDays, r.dayOfMonth, r.monthWeek, r.monthDow]);
-  return key(a) === key(b);
+/** Frequency mode preset from the guided-setup cadence. */
+function freqFromCadence(cadence: TaskCadence): FreqState {
+  if (cadence === "daily") return { mode: "daily", days: new Set(DOW_ORDER), customN: 1, customUnit: "week", customDays: new Set([1]) };
+  if (cadence === "weekly") return { mode: "weekly", days: new Set([1, 2, 3, 4, 5]), customN: 1, customUnit: "week", customDays: new Set([1]) };
+  return blankFreq();
+}
+
+const blankFreq = (): FreqState => ({ mode: "none", days: new Set([1, 3, 5]), customN: 2, customUnit: "week", customDays: new Set([1]) });
+
+function freqFromRule(rule: RecurrenceRule | undefined): FreqState {
+  const days = new Set(rule?.daysOfWeek ?? []);
+  switch (rule?.ruleType) {
+    case "weekly_days":
+      return days.size === 7
+        ? { mode: "daily", days, customN: 1, customUnit: "week", customDays: new Set([1]) }
+        : { mode: "weekly", days, customN: 1, customUnit: "week", customDays: new Set([1]) };
+    case "interval_days":
+      return { mode: "custom", days: new Set(), customN: rule.intervalDays ?? 2, customUnit: "day", customDays: new Set([1]) };
+    case "weekly_interval":
+      return { mode: "custom", days: new Set(), customN: rule.weeksInterval ?? 2, customUnit: "week", customDays: days };
+    default:
+      return blankFreq();
+  }
+}
+
+/** Map the frequency state to the stored rule payload (null = one-off). */
+function rulePayload(freq: FreqState): TaskRulePayload | null {
+  switch (freq.mode) {
+    case "daily":
+      return { ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7] };
+    case "weekly": {
+      const days = [...freq.days].sort((a, b) => a - b);
+      return days.length > 0 ? { ruleType: "weekly_days", daysOfWeek: days } : null;
+    }
+    case "custom":
+      if (freq.customUnit === "day") {
+        return { ruleType: "interval_days", intervalDays: freq.customN };
+      }
+      {
+        const days = [...freq.customDays].sort((a, b) => a - b);
+        return days.length > 0
+          ? { ruleType: "weekly_interval", weeksInterval: freq.customN, daysOfWeek: days }
+          : null;
+      }
+    default:
+      return null;
+  }
+}
+
+function ruleKey(p: TaskRulePayload | null): string {
+  return JSON.stringify([
+    p?.ruleType ?? null,
+    [...(p?.daysOfWeek ?? [])].sort(),
+    p?.intervalDays ?? null,
+    p?.weeksInterval ?? null,
+  ]);
+}
+
+function previewFor(freq: FreqState): string {
+  if (freq.mode === "none") return "One-off — schedule it by hand on the calendar.";
+  const payload = rulePayload(freq);
+  if (!payload) {
+    return freq.mode === "weekly"
+      ? "Repeats weekly — pick the days above"
+      : `Repeats every ${freq.customN} ${freq.customUnit}${freq.customN > 1 ? "s" : ""} — pick the days below`;
+  }
+  const days = occurrenceDays(payload as unknown as RuleShape, 1, TEMPLATE_DAYS);
+  if (freq.mode === "daily") return "Repeats every day · 30 occurrences — Day 1 through Day 30";
+  if (freq.mode === "weekly") {
+    const picked = [...freq.days].sort((a, b) => a - b).map((d) => DOW_LABELS[d - 1]).join(", ");
+    return `Repeats weekly on ${picked} · ~${days.length} occurrences`;
+  }
+  const unit = freq.customUnit;
+  const label = `Repeats every ${freq.customN} ${unit}${freq.customN > 1 ? "s" : ""}`;
+  const on =
+    unit === "week"
+      ? ` on ${[...freq.customDays].sort((a, b) => a - b).map((d) => DOW_LABELS[d - 1]).join(", ")}`
+      : "";
+  const list = days.slice(0, 4).map((d) => `Day ${d}`).join(", ");
+  return `${label}${on} · ${days.length} occurrences — ${list}${days.length > 4 ? ", …" : ""}`;
 }
 
 /**
- * Task editor (DESIGN.md §5.2): name, duration stepper, category, assignee
- * picks, frequency + reference time with live preview, notes. When opened
- * from a calendar occurrence it also exposes the occurrence actions row
- * (sync / delete this / delete all — DATA_MODEL.md §5.4–5.6).
+ * Task editor: Name|Duration row, the approved frequency selector
+ * (Doesn't Repeat · Daily · Weekly · Custom), assignees + category via
+ * dialogs, notes. When opened from a calendar occurrence it shows the
+ * occurrence chip, the Sync Tasks shortcut and the removal actions.
  */
 export function TaskForm({
   open,
@@ -81,10 +143,12 @@ export function TaskForm({
   const categories = usePlannerStore((s) => s.categories);
   const users = usePlannerStore((s) => s.users);
   const store = usePlannerStore();
-  const [form, setForm] = useState<FormState>(blankForm());
+  const [form, setForm] = useState<FormState>(() => blankForm(presetCadence));
   const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
+  const customWrapRef = useRef<HTMLDivElement>(null);
+  const repeatOnRowRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   // Native showModal renders the ::backdrop dim and makes Escape work; the
@@ -104,55 +168,53 @@ export function TaskForm({
       return;
     }
     const rule = store.recurrenceRules.find((r) => r.taskId === task.id);
-    const cadence = task.cadence ?? "custom";
     setForm({
       name: task.name,
       duration: task.durationMinutes,
       categoryId: task.categoryId,
       assignees: new Set(assigneesOfTask(task.id).map((u) => u.id)),
-      cadence,
-      ruleType: rule?.ruleType ?? "none",
-      daysOfWeek: cadence === "weekly" ? new Set(rule?.daysOfWeek ?? [1, 2, 3, 4, 5]) : new Set(rule?.daysOfWeek ?? []),
-      intervalDays: rule?.intervalDays ?? 2,
-      dayOfMonth: rule?.dayOfMonth ?? 1,
+      cadence: task.cadence ?? "custom",
+      freq: freqFromRule(rule),
       notes: task.notes ?? "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, task?.id]);
+  }, [open, task?.id, presetCadence]);
 
-  const preview = useMemo((): string => {
-    if (form.ruleType === "none") return "One-off — schedule it by hand on the calendar.";
-    const days = occurrenceDays(rulePayload(form));
-    if (days.length === 0) {
-      return `Occurs ${describeRule(rulePayload(form))} — no matching days in the template.`;
-    }
-    const next = days.slice(0, 5).map((d) => `Day ${d}`);
-    return `Occurs ${describeRule(rulePayload(form))} — ${days.length} days in the template: ${next.join(", ")}${days.length > next.length ? ", …" : ""}. Drop it on the calendar once and every occurrence follows that time.`;
-  }, [form]);
+  // Custom panel: the "Repeat every" row spans the "Repeat on" row's width.
+  useEffect(() => {
+    const wrap = customWrapRef.current;
+    const row2 = repeatOnRowRef.current;
+    if (!wrap || !row2 || form.freq.mode !== "custom") return;
+    wrap.style.width = "max-content";
+    row2.style.width = "max-content";
+    const w = row2.getBoundingClientRect().width;
+    row2.style.width = "";
+    if (w > 0) wrap.style.width = `${w}px`;
+  });
+
+  const preview = useMemo(() => previewFor(form.freq), [form.freq]);
 
   if (!open) return null;
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]): void =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const toggleDay = (d: number): void =>
+  const setFreq = (patch: Partial<FreqState>): void =>
+    setForm((f) => ({ ...f, freq: { ...f.freq, ...patch } }));
+
+  const toggleIn = (key: "days" | "customDays", id: number): void =>
     setForm((f) => {
-      const days = new Set(f.daysOfWeek);
-      if (days.has(d)) days.delete(d);
-      else days.add(d);
-      return { ...f, daysOfWeek: days };
+      const next = new Set(f.freq[key]);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { ...f, freq: { ...f.freq, [key]: next } };
     });
 
-  const setCadence = (cadence: TaskCadence): void =>
-    setForm((f) => {
-      if (cadence === "daily") return { ...f, cadence, ruleType: "weekly_days", daysOfWeek: new Set(DOW_ORDER) };
-      if (cadence === "weekly") {
-        const days = f.daysOfWeek.size > 0 ? f.daysOfWeek : new Set([1, 2, 3, 4, 5]);
-        return { ...f, cadence, ruleType: "weekly_days", daysOfWeek: days };
-      }
-      if (cadence === "monthly") return { ...f, cadence, ruleType: "monthly_date" };
-      return { ...f, cadence };
-    });
+  const stepDuration = (delta: number): void =>
+    setForm((f) => ({ ...f, duration: Math.max(15, Math.min(240, f.duration + delta)) }));
+
+  const stepCustomN = (delta: number): void =>
+    setFreq({ customN: Math.max(1, Math.min(15, form.freq.customN + delta)) });
 
   const save = async (): Promise<void> => {
     if (!form.name.trim()) {
@@ -162,14 +224,15 @@ export function TaskForm({
     setBusy(true);
     try {
       if (task == null) {
+        const recurrence = rulePayload(form.freq);
         await store.createTask({
           name: form.name.trim(),
           durationMinutes: form.duration,
           notes: form.notes || null,
           categoryId: form.categoryId,
           assigneeIds: [...form.assignees],
-          cadence: form.cadence,
-          recurrence: form.cadence === "custom" && form.ruleType === "none" ? undefined : rulePayload(form),
+          cadence: cadenceFor(form.freq),
+          recurrence: recurrence ?? undefined,
         });
         toast.success(`“${form.name.trim()}” added to the library`);
       } else {
@@ -178,7 +241,7 @@ export function TaskForm({
           task.durationMinutes !== form.duration ||
           task.notes !== (form.notes || null) ||
           task.categoryId !== form.categoryId ||
-          task.cadence !== form.cadence;
+          task.cadence !== cadenceFor(form.freq);
         const assigneesChanged =
           JSON.stringify([...form.assignees].sort()) !==
           JSON.stringify(assigneesOfTask(task.id).map((u) => u.id).sort());
@@ -189,23 +252,25 @@ export function TaskForm({
             notes: form.notes || null,
             categoryId: form.categoryId,
             assigneeIds: [...form.assignees],
+            cadence: cadenceFor(form.freq),
           });
         }
         const existing = store.recurrenceRules.find((r) => r.taskId === task.id);
-        const next = rulePayload(form);
+        const next = rulePayload(form.freq);
         const existingPayload: TaskRulePayload | null = existing
           ? {
               ruleType: existing.ruleType,
               daysOfWeek: existing.daysOfWeek,
               intervalDays: existing.intervalDays,
+              weeksInterval: existing.weeksInterval,
               dayOfMonth: existing.dayOfMonth,
               monthWeek: existing.monthWeek,
               monthDow: existing.monthDow,
             }
-          : { ruleType: "none", daysOfWeek: null, intervalDays: null, dayOfMonth: null, monthWeek: null, monthDow: null };
-        if (!sameRule(next, existingPayload)) {
-          await store.setRecurrence(task.id, next);
-          if (next.ruleType !== "none") toast.success("Frequency saved — occurrences regenerated for the 30-day window");
+          : null;
+        if (ruleKey(next) !== ruleKey(existingPayload)) {
+          await store.setRecurrence(task.id, next ?? { ruleType: "none" });
+          if (next) toast.success("Frequency saved — occurrences regenerated across the template");
         }
         toast.success(`“${form.name.trim()}” updated`);
       }
@@ -217,18 +282,15 @@ export function TaskForm({
     }
   };
 
-  const runOccurrenceAction = async (action: "sync-all" | "delete-one" | "delete-all"): Promise<void> => {
+  const runOccurrenceAction = async (action: "remove-one" | "remove-all"): Promise<void> => {
     if (!occurrence || !task) return;
     try {
-      if (action === "sync-all") {
-        await store.syncEvent(occurrence.id, "all");
-        toast.success("Time synced to all occurrences of this task");
-      } else if (action === "delete-one") {
+      if (action === "remove-one") {
         await store.deleteEvent(occurrence.id);
         toast.info("Occurrence removed");
         onClose();
       } else {
-        if (!window.confirm("Delete every occurrence of this task in the 30-day window?")) return;
+        if (!window.confirm(`Remove every occurrence of “${task.name}” from the template?`)) return;
         await store.deleteTaskEvents(task.id);
         toast.info("All occurrences removed");
         onClose();
@@ -238,8 +300,25 @@ export function TaskForm({
     }
   };
 
-  const stepDuration = (delta: number): void =>
-    setForm((f) => ({ ...f, duration: Math.max(15, Math.min(240, f.duration + delta)) }));
+  const runSync = async (): Promise<void> => {
+    if (!occurrence) return;
+    await store.syncEvent(occurrence.id, "all");
+    toast.success("Time synced to all occurrences of this task");
+  };
+
+  const dayCircles = (key: "days" | "customDays"): React.JSX.Element[] =>
+    DOW_ORDER.map((d, i) => (
+      <button
+        type="button"
+        key={d}
+        className={`day-circle${form.freq[key].has(d) ? " on" : ""}`}
+        onClick={() => toggleIn(key, d)}
+        aria-pressed={form.freq[key].has(d)}
+        title={DOW_LONG[i]}
+      >
+        {DOW_LABELS[i].slice(0, 1).toUpperCase()}
+      </button>
+    ));
 
   return (
     <>
@@ -251,265 +330,203 @@ export function TaskForm({
         onClose={onClose}
       >
         <div className="modal-box max-w-lg">
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <h3 id="task-form-title" className="text-lg font-bold">{task ? "Edit task" : "Add task"}</h3>
-
-          <fieldset className="fieldset p-0 gap-2">
-            <legend className="fieldset-legend text-xs">Name *</legend>
-            <input
-              type="text"
-              id="task-name"
-              name="name"
-              className="input w-full"
-              placeholder="e.g. Homework"
-              required
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              autoFocus
-            />
-          </fieldset>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <fieldset className="fieldset p-0 gap-2 min-w-0">
-              <legend className="fieldset-legend text-xs">Duration * (15-min steps)</legend>
-              <div className="join w-full items-stretch">
-                <button type="button" className="join-item btn btn-sm" onClick={() => stepDuration(-15)}>
-                  −
-                </button>
-                <span className="join-item flex-1 grid place-items-center bg-base-200 text-sm font-semibold min-h-8 border-0 outline-none">
-                  {form.duration} min
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save();
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 id="task-form-title" className="text-lg font-bold">{task ? "Edit task" : "Add task"}</h3>
+              {occurrence && (
+                <span className="badge badge-ghost border-base-content/10 shrink-0">
+                  Day {dayNumber(occurrence.eventDate)} · {fmtTime(occurrence.startMinute)}–
+                  {fmtTime(occurrence.endMinute)}
                 </span>
-                <button type="button" className="join-item btn btn-sm" onClick={() => stepDuration(15)}>
-                  +
-                </button>
-              </div>
-            </fieldset>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <fieldset className="fieldset p-0 gap-2 min-w-0">
+                <legend className="fieldset-legend text-xs">Name *</legend>
+                <input
+                  type="text"
+                  className="input w-full h-10"
+                  placeholder="e.g. Homework"
+                  required
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  autoFocus
+                />
+              </fieldset>
+              <fieldset className="fieldset p-0 gap-2 min-w-0">
+                <legend className="fieldset-legend text-xs">Duration *</legend>
+                <div className="join w-full items-stretch h-10">
+                  <button type="button" className="join-item btn btn-sm" onClick={() => stepDuration(-15)}>
+                    −
+                  </button>
+                  <span className="join-item flex-1 grid place-items-center bg-base-200 text-sm font-semibold border-0 outline-none">
+                    {form.duration} min
+                  </span>
+                  <button type="button" className="join-item btn btn-sm" onClick={() => stepDuration(15)}>
+                    +
+                  </button>
+                </div>
+              </fieldset>
+            </div>
+
             <fieldset className="fieldset p-0 gap-2 min-w-0">
-              <legend className="fieldset-legend text-xs">Cadence</legend>
-              <div className="join w-full" role="group" aria-label="Cadence">
-                {CADENCE_OPTIONS.map((c) => (
+              <div className="flex items-center justify-between -mb-1">
+                <legend className="fieldset-legend text-xs mb-0">Frequency</legend>
+                {occurrence && task && (
                   <button
                     type="button"
-                    key={c.value}
-                    className={`join-item btn btn-sm flex-1 px-1${form.cadence === c.value ? " btn-primary" : ""}`}
-                    onClick={() => setCadence(c.value)}
-                    aria-pressed={form.cadence === c.value}
+                    className="btn btn-ghost btn-xs freq-preview"
+                    onClick={() => void runSync()}
+                    title="Sync the time to all occurrences of this task"
                   >
-                    {c.label}
+                    ⤒ Sync Tasks
+                  </button>
+                )}
+              </div>
+              <div className="seg" role="tablist" aria-label="Frequency">
+                {(
+                  [
+                    ["none", "Doesn't Repeat"],
+                    ["daily", "Daily"],
+                    ["weekly", "Weekly"],
+                    ["custom", "Custom"],
+                  ] as Array<[FreqMode, string]>
+                ).map(([m, label]) => (
+                  <button
+                    type="button"
+                    key={m}
+                    className={form.freq.mode === m ? "on" : ""}
+                    onClick={() => setFreq({ mode: m })}
+                    aria-pressed={form.freq.mode === m}
+                  >
+                    {label}
                   </button>
                 ))}
               </div>
+              {form.freq.mode === "weekly" && (
+                <div className="flex items-center justify-center gap-2.5 text-sm">
+                  <span className="opacity-70">Repeat on</span>
+                  <div className="flex gap-1.5">{dayCircles("days")}</div>
+                </div>
+              )}
+              {form.freq.mode === "custom" && (
+                <div className="flex justify-center">
+                  <div className="inline-flex flex-col gap-2.5" ref={customWrapRef}>
+                    <div className="flex items-center justify-between gap-2.5 text-sm">
+                      <span>Repeat every</span>
+                      <div className="stepper">
+                        <button type="button" onClick={() => stepCustomN(-1)}>−</button>
+                        <span className="val">{form.freq.customN}</span>
+                        <button type="button" onClick={() => stepCustomN(1)}>+</button>
+                      </div>
+                      <select
+                        className="select select-sm"
+                        style={{ width: "6.5rem" }}
+                        value={form.freq.customUnit}
+                        onChange={(e) => setFreq({ customUnit: e.target.value as "day" | "week" })}
+                        aria-label="Unit"
+                      >
+                        <option value="day">day</option>
+                        <option value="week">week</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-sm" ref={repeatOnRowRef}>
+                      <span className="opacity-70">Repeat on</span>
+                      <div className="flex gap-1.5">{dayCircles("customDays")}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <p className="preview">{preview}</p>
             </fieldset>
-          </div>
 
-          {form.cadence === "custom" && (
             <fieldset className="fieldset p-0 gap-2 min-w-0">
-              <legend className="fieldset-legend text-xs">Frequency</legend>
-              <select
-                id="task-frequency"
-                name="ruleType"
-                className="select select-sm w-full h-8"
-                value={form.ruleType}
-                onChange={(e) => set("ruleType", e.target.value as RecurrenceRuleType)}
+              <legend className="fieldset-legend text-xs">Assignees</legend>
+              <button
+                type="button"
+                className="btn btn-sm w-full h-10 justify-start gap-2 min-w-0 font-normal"
+                onClick={() => setAssigneePickerOpen(true)}
+                aria-haspopup="dialog"
               >
-                <option value="none">One-off (no repeat)</option>
-                <option value="weekly_days">On days of week</option>
-                <option value="interval_days">Every N days</option>
-                <option value="monthly_date">On a specific template day</option>
-              </select>
+                {pickedUsers.length > 0 ? (
+                  <AvatarStack users={pickedUsers} max={5} />
+                ) : (
+                  <span className="opacity-60">No assignees</span>
+                )}
+                <span className="ml-auto opacity-40 shrink-0">▾</span>
+              </button>
             </fieldset>
-          )}
 
-          {form.cadence === "custom" && form.ruleType !== "none" && (
-            <div className="flex flex-col gap-3">
-              {form.ruleType === "weekly_days" && (
-                <div className="flex gap-1" role="group" aria-label="Days of week">
-                  {DOW_ORDER.map((d, i) => (
-                    <button
-                      type="button"
-                      key={d}
-                      className={`btn btn-sm btn-square${form.daysOfWeek.has(d) ? " btn-primary" : ""}`}
-                      onClick={() => toggleDay(d)}
-                      aria-pressed={form.daysOfWeek.has(d)}
-                      title={DOW_LONG[i]}
-                    >
-                      {DOW_SHORT[i]}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {form.ruleType === "interval_days" && (
-                <label className="flex items-center gap-2 text-sm">
-                  Every
-                  <input
-                    type="number"
-                    id="task-interval-days"
-                    name="intervalDays"
-                    className="input input-sm w-20"
-                    min={1}
-                    max={365}
-                    value={form.intervalDays}
-                    onChange={(e) => set("intervalDays", Math.max(1, Number(e.target.value) || 1))}
-                  />
-                  days
-                </label>
-              )}
-              {form.ruleType === "monthly_date" && (
-                <label className="flex items-center gap-2 text-sm">
-                  Template day
-                  <input
-                    type="number"
-                    id="task-day-of-month"
-                    name="dayOfMonth"
-                    className="input input-sm w-20"
-                    min={1}
-                    max={TEMPLATE_DAYS}
-                    value={form.dayOfMonth}
-                    onChange={(e) => set("dayOfMonth", Math.min(TEMPLATE_DAYS, Math.max(1, Number(e.target.value) || 1)))}
-                  />
-                  <span className="opacity-70">(Day {form.dayOfMonth} of the 30-day template)</span>
-                </label>
-              )}
-              <p className="text-xs font-medium accent-text">{preview}</p>
-            </div>
-          )}
+            <fieldset className="fieldset p-0 gap-2 min-w-0">
+              <legend className="fieldset-legend text-xs">Category</legend>
+              <button
+                type="button"
+                className="btn btn-sm w-full h-8 justify-start gap-2 min-w-0 font-normal"
+                onClick={() => setPickerOpen(true)}
+                aria-haspopup="dialog"
+              >
+                <span
+                  className="inline-block w-3.5 h-3.5 rounded-full shrink-0"
+                  style={{
+                    background: currentCategory?.color ?? "var(--color-base-content)",
+                    opacity: currentCategory ? 1 : 0.3,
+                  }}
+                />
+                <span className={`truncate min-w-0 text-left${currentCategory ? "" : " opacity-60"}`}>
+                  {currentCategory?.name ?? "No category"}
+                </span>
+                <span className="ml-auto opacity-40 shrink-0">▾</span>
+              </button>
+            </fieldset>
 
-          {form.cadence !== "custom" && (
-            <div className="flex flex-col gap-3">
-              {form.cadence === "daily" && (
-                <p className="text-xs opacity-70">Every single day — the time comes when you place it.</p>
-              )}
-              {form.cadence === "weekly" && (
-                <div className="flex gap-1" role="group" aria-label="Days of week">
-                  {DOW_ORDER.map((d, i) => (
-                    <button
-                      type="button"
-                      key={d}
-                      className={`btn btn-sm btn-square${form.daysOfWeek.has(d) ? " btn-primary" : ""}`}
-                      onClick={() => toggleDay(d)}
-                      aria-pressed={form.daysOfWeek.has(d)}
-                      title={DOW_LONG[i]}
-                    >
-                      {DOW_SHORT[i]}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {form.cadence === "monthly" && (
-                <label className="flex items-center gap-2 text-sm">
-                  Template day
-                  <input
-                    type="number"
-                    className="input input-sm w-20"
-                    min={1}
-                    max={TEMPLATE_DAYS}
-                    value={form.dayOfMonth}
-                    onChange={(e) => set("dayOfMonth", Math.min(TEMPLATE_DAYS, Math.max(1, Number(e.target.value) || 1)))}
-                  />
-                  <span className="opacity-50">(Day {form.dayOfMonth} of the 30-day template)</span>
-                </label>
-              )}
-              <p className="text-xs font-medium text-primary">{preview}</p>
-            </div>
-          )}
-
-          <fieldset className="fieldset p-0 gap-2 min-w-0">
-            <legend className="fieldset-legend text-xs">
-              Assignees (optional — shared people drive conflict warnings)
-            </legend>
-            <button
-              type="button"
-              className="btn btn-sm w-full h-8 justify-start gap-2 min-w-0 font-normal"
-              onClick={() => setAssigneePickerOpen(true)}
-              aria-haspopup="dialog"
-            >
-              {pickedUsers.length > 0 ? (
-                <AvatarStack users={pickedUsers} max={5} />
-              ) : (
-                <span className="opacity-60">No assignees</span>
-              )}
-              <span className="ml-auto opacity-40 shrink-0">▾</span>
-            </button>
-          </fieldset>
-
-          <fieldset className="fieldset p-0 gap-2 min-w-0">
-            <legend className="fieldset-legend text-xs">Category</legend>
-            <button
-              type="button"
-              className="btn btn-sm w-full h-8 justify-start gap-2 min-w-0 font-normal"
-              onClick={() => setPickerOpen(true)}
-              aria-haspopup="dialog"
-            >
-              <span
-                className="dot-ring inline-block w-3.5 h-3.5 rounded-full shrink-0"
-                style={{
-                  background: currentCategory?.color ?? "var(--color-base-content)",
-                  opacity: currentCategory ? 1 : 0.3,
-                }}
+            <fieldset className="fieldset p-0 gap-2">
+              <legend className="fieldset-legend text-xs">Notes</legend>
+              <textarea
+                className="textarea w-full"
+                rows={2}
+                placeholder="Optional context…"
+                value={form.notes}
+                onChange={(e) => set("notes", e.target.value)}
               />
-              <span className={`truncate min-w-0 text-left${currentCategory ? "" : " opacity-60"}`}>
-                {currentCategory?.name ?? "No category"}
-              </span>
-              <span className="ml-auto opacity-40 shrink-0">▾</span>
-            </button>
-          </fieldset>
+            </fieldset>
 
-          <fieldset className="fieldset p-0 gap-2">
-            <legend className="fieldset-legend text-xs">Notes</legend>
-            <textarea
-              id="task-notes"
-              name="notes"
-              className="textarea w-full"
-              rows={2}
-              placeholder="Optional context…"
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-            />
-          </fieldset>
-
-          {occurrence && task && (
-            <div className="border border-base-content/10 rounded-xl p-2 flex flex-wrap gap-2 items-center bg-base-200/60">
-              <span className="text-[11px] opacity-60 mr-1">This occurrence:</span>
-              <button type="button" className="btn btn-sm h-11" onClick={() => void runOccurrenceAction("sync-all")}>
-                ⤒ Sync time to all
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm btn-warning h-11"
-                onClick={() => void runOccurrenceAction("delete-one")}
-              >
-                Delete occurrence
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm btn-error h-11"
-                onClick={() => void runOccurrenceAction("delete-all")}
-              >
-                Delete all occurrences
-              </button>
+            <div className="flex items-center justify-between gap-2 mt-1 flex-wrap">
+              {occurrence && task && (
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-warning"
+                    onClick={() => void runOccurrenceAction("remove-one")}
+                  >
+                    Remove Occurrence
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-error"
+                    onClick={() => void runOccurrenceAction("remove-all")}
+                  >
+                    Remove All Occurrences
+                  </button>
+                </div>
+              )}
+              <div className={`flex gap-2${occurrence && task ? "" : " ml-auto"}`}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
+                  {busy ? <span className="loading loading-spinner loading-sm" /> : task ? "Save changes" : "Save task"}
+                </button>
+              </div>
             </div>
-          )}
-
-          <div className="modal-action">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? <span className="loading loading-spinner loading-sm" /> : "Save task"}
-            </button>
-          </div>
-          <p className="text-[11px] opacity-70">
-            Recurring tasks start at 09:00 — drop one on the calendar and every occurrence follows that time.
-            Moving a single occurrence never touches its siblings; changing frequency regenerates the template.
-          </p>
-        </form>
-      </div>
+          </form>
+        </div>
       </dialog>
       <CategoryPickerDialog
         open={pickerOpen}
@@ -538,10 +555,7 @@ function blankForm(presetCadence?: TaskCadence): FormState {
     categoryId: null,
     assignees: new Set<number>(),
     cadence: presetCadence ?? "custom",
-    ruleType: presetCadence === "daily" ? "weekly_days" : "none",
-    daysOfWeek: new Set<number>(presetCadence === "daily" ? DOW_ORDER : []),
-    intervalDays: 2,
-    dayOfMonth: 1,
+    freq: freqFromCadence(presetCadence ?? "custom"),
     notes: "",
   };
 }
