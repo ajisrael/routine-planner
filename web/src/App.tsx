@@ -7,13 +7,15 @@ import { UserManager } from "./components/users/UserManager";
 import TasksView from "./views/TasksView";
 import PlanView from "./views/PlanView";
 import ViewTab from "./views/ViewTab";
+import SetupView from "./views/SetupView";
 import { useSession } from "./store/session";
 import { usePlannerStore } from "./store";
 import { connectRealtime } from "./store/socket";
 
 /**
- * App shell (DESIGN.md §4): welcome gate → navbar (Tasks → Plan → View tabs,
+ * App shell (DESIGN.md §4): welcome gate → navbar (Tasks → Plan → View → Setup,
  * theme toggle, live-sync indicator, user menu) → tab content + toasts.
+ * With no tasks yet, the Setup tab opens first so the routine gets its cadence.
  */
 export default function App(): React.JSX.Element {
   const user = useSession((s) => s.user);
@@ -22,6 +24,10 @@ export default function App(): React.JSX.Element {
   const [tab, setTab] = useState<Tab>("tasks");
   const [peopleOpen, setPeopleOpen] = useState(false);
 
+  const openSetupForEmptyLibrary = (): void => {
+    if (usePlannerStore.getState().tasks.length === 0) setTab("setup");
+  };
+
   useEffect(() => {
     let cancelled = false;
     api
@@ -29,7 +35,7 @@ export default function App(): React.JSX.Element {
       .then((me) => {
         if (cancelled) return;
         setUser(me);
-        void usePlannerStore.getState().refresh();
+        void usePlannerStore.getState().refresh().then(openSetupForEmptyLibrary);
         connectRealtime();
       })
       .catch(() => {
@@ -46,7 +52,7 @@ export default function App(): React.JSX.Element {
 
   const handleLogin = (me: Parameters<typeof setUser>[0]): void => {
     setUser(me);
-    void usePlannerStore.getState().refresh();
+    void usePlannerStore.getState().refresh().then(openSetupForEmptyLibrary);
     connectRealtime();
     setTab("tasks");
   };
@@ -75,7 +81,15 @@ export default function App(): React.JSX.Element {
     <div className="flex h-dvh flex-col overflow-hidden bg-base-200">
       <Navbar tab={tab} onTab={setTab} onManagePeople={() => setPeopleOpen(true)} />
       <main className="flex min-h-0 w-full max-w-[1500px] flex-1 flex-col overflow-y-auto mx-auto p-3 lg:p-5">
-        {tab === "tasks" ? <TasksView /> : tab === "plan" ? <PlanView onOpenLibrary={() => setTab("tasks")} /> : <ViewTab />}
+        {tab === "tasks" ? (
+          <TasksView />
+        ) : tab === "plan" ? (
+          <PlanView onOpenLibrary={() => setTab("tasks")} />
+        ) : tab === "setup" ? (
+          <SetupView onSkip={() => setTab("tasks")} onFinish={() => setTab("view")} />
+        ) : (
+          <ViewTab />
+        )}
       </main>
       {peopleOpen && <UserManager onClose={() => setPeopleOpen(false)} />}
       <Toaster />

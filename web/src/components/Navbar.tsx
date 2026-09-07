@@ -7,12 +7,13 @@ import { toast } from "../store/toasts";
 import { disconnectRealtime } from "../store/socket";
 import { usePlannerStore } from "../store";
 
-export type Tab = "tasks" | "plan" | "view";
+export type Tab = "tasks" | "plan" | "view" | "setup";
 
 const TABS: Array<{ id: Tab; label: string; icon: string }> = [
   { id: "tasks", label: "Tasks", icon: "🗂️" },
   { id: "plan", label: "Plan", icon: "📅" },
   { id: "view", label: "View", icon: "👁️" },
+  { id: "setup", label: "Setup", icon: "🪄" },
 ];
 
 /** App shell navbar: brand · Tasks→Plan→View tabs · theme · sync · user menu. */

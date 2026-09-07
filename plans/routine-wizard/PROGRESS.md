@@ -37,25 +37,29 @@ Re-anchor POST path also still used by the free-form Plan tab for DnD.
 
 ## Phases
 
-- [ ] **P1 - Foundation (data model + API + store)** - incremental commits
+- [x] **P1 - Foundation (data model + API + store)** - DONE (commits 3698a1d→831fd87)
   - Migration `002` (server/src/migration/): rebuild `users` (drop `is_login_user`, `username` NOT NULL UNIQUE + backfill), add `tasks.cadence` NOT NULL DEFAULT 'custom' CHECK.
   - Shared types: `TaskCadence` union + `Task.cadence`; `User` without `isLoginUser`, `username` required.
   - rows.ts: mapUser/mapTask bring cadence + drop isLoginUser.
   - users route: create *login* users `{username, displayName}`, delete self-guard, rename unchanged.
   - auth route: `currentUser()` no longer filters `is_login_user = 1`.
-  - tasks route: accept/validate `cadence`.
-  - store + API client: cadence passthrough; users actions renamed (createUser/updateUser/deleteUser with self-guard UI), snapshot unchanged keys.
-  - Tests: users CRUD as login users, self-delete 400, cadence round-trip, auth /me no persona filter, migration applied.
-- [ ] **P2 - TaskForm cadence-first + library segments**
+  - tasks route: accept/validate `cadence`; removed dead duplicate `case "monthly_weekday"`.
+  - store + API client: cadence passthrough; createPersona→createUser/deletePersona→deleteUser.
+  - Components updated: UserManager rewritten as People manager (self-delete guard via session), AssigneePickerDialog (no persona badges), Avatar, Welcome (no persona copy).
+  - Tests: server 52 → green; migration.test.ts suites (users rebuild, backfill, cascade, cadence). Web 15 → green.
+- [x] **P2 - TaskForm cadence-first + library segments** - DONE (commit 93a12ac)
   - TaskForm: cadence select first (Daily/Weekly/Monthly/Custom); Daily auto-rule 7 days; Weekly → M-Su toggles; Monthly → day-of-month; Custom keeps existing recurrence dropdown. Save cadence.
   - TasksView library: All/Daily/Weekly/Monthly/Other segment chips + cadence badges.
-- [ ] **P3 - Setup tab shell + hub + gating**
+- [x] **P3 - Setup tab shell + hub + gating** - DONE (uncommitted)
   - Navbar Tab type + Setup tab. App first-run gate (no tasks → auto-open Setup; Skip → Tasks).
   - SetupHub: People → Daily → Weekly → Monthly → done checklist, resume by section + completions.
-- [ ] **P4 - People stage** (rewire UserManager → create/delete/rename login users)
-- [ ] **P5 - Daily + Weekly stages** (StyledTodo → arrangement placePattern via setRecurrence; done semantics; summary lines "2 placed / 1 unplaced")
-- [ ] **P6 - Monthly stage + passthrough sweep** (ReviewList etc. remove persona assumptions; completion)
-- [ ] **P7 - Polish + E2E** (browser walkthrough via chrome-devtools-axi, pixel checks, truthful persistence check, lint/typecheck/tests green)
+- [x] **P4 - People stage** - DONE (uncommitted) - inline People manager in Setup, rewired to create/delete/rename login users.
+- [x] **P5 - Daily + Weekly stages** - DONE (uncommitted)
+  - StyledTodo → arrangement placePattern via setRecurrence; done semantics; summary lines "2 placed / 1 unplaced".
+- [x] **P6 - Monthly stage** - DONE (uncommitted)
+  - Month grid + day drill (armed task tap → open day, place at a time); non-monthly pills locked; monthly pill re-anchor via drag.
+- [ ] **P7 - Polish + E2E** - IN PROGRESS
+  - Browser E2E largely verified (see session notes) via chrome-devtools-axi + production build; remaining: drag paths not automatable with synthetic pointer events (shared onDragEnd handlers + unit-tested helpers), pixel checks, truthfulness of first-run gating after data exists.
 
 ## Test discipline
 
@@ -65,7 +69,10 @@ Re-anchor POST path also still used by the free-form Plan tab for DnD.
 
 ## Session notes / gotchas (keep appending)
 
-- `.lavish/` is tracked in git; `.lavish/setup-wizard-plan.html` untracked (commit at P1 end or when updating artifact).
+- Project deps need `npm install`; npm shields install scripts → run `npm install-scripts approve better-sqlite3@13.0.3 esbuild@0.28.2 esbuild@0.21.5` (recorded in root package.json allowScripts). `@planner/shared` must be built before server/web tests (`npm run build -w @planner/shared`).
+- Commit status: P1 done (4 commits) + P2 done (1 commit). P3–P6 code written, E2E-verified, staging for incremental commits.
+- E2E run (2026-09-06, production build on :3100): fresh data dir; login Levi → Setup auto-opens (gating works); added Nina (People); Coffee daily via armed-tap Day 1 at 08:00 (rule weekly_days [1..7], 30 events @480); Piano weekly via armed-tap Tue 17:00 then armed-tap Sat (add-day same ref; rule [2,6], 9 events @1020); Laundry monthly via arm → tap date 4 → day drill → tap 10:30 (rule monthly_date dom 4, 1 event @630 = correct: monthly_date = exact template day, per shared/src/recurrence.ts); Done → View tab shows read-only preview; Plan tab consistent, "no conflicts". Drag paths (music block to another column/time, rail drop-to-remove) NOT automatable via synthetic pointer events - Chrome/CDP events don't drive dnd-kit PointerSensor; logic shares verified onDragEnd handlers + unit-tested pattern helpers.
+- chrome-devtools-axi quirks (repeat from prior run): uids go stale after any action → always re-snapshot; `fill` fails on React inputs → `click` then `type`; armed tap at precise time = eval dispatch `MouseEvent('click',{clientX,clientY})` on `.day-col` at `rect.top + hour*hourHeight`, `hourHeight` = first `.gutter-cell` height (102 here). Port :3000 is another working copy's dev server - do NOT run dev server for E2E; use production build + NODE_ENV=production on :3100 (web/dist served).
 - AGENTS.md: no em dashes; never run `tmux kill-server`; run lint+typecheck+test before finishing; avoid full system paths in files.
 - Storyboard/artifacts: don't run lavishly in this phase; deliver updates in conversation.
 - Migration naming: numeric prefix sort, next = `002`.
