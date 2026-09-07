@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { RecurrenceRuleType, ScheduledEvent, Task } from "@planner/shared";
 import { describeRule, occurrenceDays, TEMPLATE_DAYS } from "@planner/shared";
 import type { RuleShape } from "@planner/shared";
@@ -67,6 +67,14 @@ export function TaskForm({
   const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [assigneePickerOpen, setAssigneePickerOpen] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // Native showModal renders the ::backdrop dim and makes Escape work; the
+  // daisyUI `modal-open` class variant has neither.
+  useLayoutEffect(() => {
+    const d = dialogRef.current;
+    if (open && d && !d.open) d.showModal();
+  }, [open]);
 
   const currentCategory = form.categoryId != null ? categories.find((c) => c.id === form.categoryId) : undefined;
   const pickedUsers = users.filter((u) => form.assignees.has(u.id));
@@ -202,7 +210,13 @@ export function TaskForm({
 
   return (
     <>
-      <dialog className="modal modal-open" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <dialog
+        ref={dialogRef}
+        className="modal"
+        aria-labelledby="task-form-title"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+        onClose={onClose}
+      >
         <div className="modal-box max-w-lg">
         <form
           className="flex flex-col gap-3"
@@ -211,12 +225,14 @@ export function TaskForm({
             void save();
           }}
         >
-          <h3 className="text-lg font-bold">{task ? "Edit task" : "Add task"}</h3>
+          <h3 id="task-form-title" className="text-lg font-bold">{task ? "Edit task" : "Add task"}</h3>
 
           <fieldset className="fieldset p-0 gap-2">
             <legend className="fieldset-legend text-xs">Name *</legend>
             <input
               type="text"
+              id="task-name"
+              name="name"
               className="input w-full"
               placeholder="e.g. Homework"
               required
@@ -226,7 +242,7 @@ export function TaskForm({
             />
           </fieldset>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <fieldset className="fieldset p-0 gap-2 min-w-0">
               <legend className="fieldset-legend text-xs">Duration * (15-min steps)</legend>
               <div className="join w-full items-stretch">
@@ -244,6 +260,8 @@ export function TaskForm({
             <fieldset className="fieldset p-0 gap-2 min-w-0">
               <legend className="fieldset-legend text-xs">Frequency</legend>
               <select
+                id="task-frequency"
+                name="ruleType"
                 className="select select-sm w-full h-8"
                 value={form.ruleType}
                 onChange={(e) => set("ruleType", e.target.value as RecurrenceRuleType)}
@@ -279,6 +297,8 @@ export function TaskForm({
                   Every
                   <input
                     type="number"
+                    id="task-interval-days"
+                    name="intervalDays"
                     className="input input-sm w-20"
                     min={1}
                     max={365}
@@ -293,6 +313,8 @@ export function TaskForm({
                   Template day
                   <input
                     type="number"
+                    id="task-day-of-month"
+                    name="dayOfMonth"
                     className="input input-sm w-20"
                     min={1}
                     max={TEMPLATE_DAYS}
@@ -350,6 +372,8 @@ export function TaskForm({
           <fieldset className="fieldset p-0 gap-2">
             <legend className="fieldset-legend text-xs">Notes</legend>
             <textarea
+              id="task-notes"
+              name="notes"
               className="textarea w-full"
               rows={2}
               placeholder="Optional context…"
@@ -361,19 +385,19 @@ export function TaskForm({
           {occurrence && task && (
             <div className="border border-base-content/10 rounded-xl p-2 flex flex-wrap gap-2 items-center bg-base-200/60">
               <span className="text-[11px] opacity-60 mr-1">This occurrence:</span>
-              <button type="button" className="btn btn-xs" onClick={() => void runOccurrenceAction("sync-all")}>
+              <button type="button" className="btn btn-sm h-11" onClick={() => void runOccurrenceAction("sync-all")}>
                 ⤒ Sync time to all
               </button>
               <button
                 type="button"
-                className="btn btn-xs btn-warning"
+                className="btn btn-sm btn-warning h-11"
                 onClick={() => void runOccurrenceAction("delete-one")}
               >
                 Delete occurrence
               </button>
               <button
                 type="button"
-                className="btn btn-xs btn-error"
+                className="btn btn-sm btn-error h-11"
                 onClick={() => void runOccurrenceAction("delete-all")}
               >
                 Delete all occurrences

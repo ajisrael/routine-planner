@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 /**
@@ -30,9 +31,24 @@ export function SelectionDialog({
   onCancel: () => void;
   onApply: () => void;
 }): React.JSX.Element | null {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // Native showModal: these pickers open on top of the task form's own native
+  // modal, and a class-based overlay rendered outside the top layer would be
+  // inert (unclickable) while the task form is open.
+  useLayoutEffect(() => {
+    const d = dialogRef.current;
+    if (open && d && !d.open) d.showModal();
+  }, [open]);
+
   if (!open) return null;
   return (
-    <dialog className="modal modal-open" onClick={(e) => e.target === e.currentTarget && onCancel()}>
+    <dialog
+      ref={dialogRef}
+      className="modal"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      onClose={onCancel}
+    >
       <div className="modal-box max-w-sm p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-base font-bold">{title}</h3>
