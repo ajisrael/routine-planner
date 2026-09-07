@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { RecurrenceRuleType, ScheduledEvent, Task } from "@planner/shared";
+import type { RecurrenceRuleType, ScheduledEvent, Task, TaskCadence } from "@planner/shared";
 import { describeRule, occurrenceDays, TEMPLATE_DAYS } from "@planner/shared";
 import type { RuleShape } from "@planner/shared";
 import { usePlannerStore, assigneesOfTask } from "../../store";
@@ -13,11 +13,19 @@ const DOW_ORDER = [1, 2, 3, 4, 5, 6, 7];
 const DOW_SHORT = ["M", "T", "W", "T", "F", "S", "S"];
 const DOW_LONG = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+export const CADENCE_OPTIONS: Array<{ value: TaskCadence; label: string }> = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "custom", label: "Custom" },
+];
+
 interface FormState {
   name: string;
   duration: number;
   categoryId: number | null;
   assignees: Set<number>;
+  cadence: TaskCadence;
   ruleType: RecurrenceRuleType;
   daysOfWeek: Set<number>;
   intervalDays: number;
@@ -25,12 +33,19 @@ interface FormState {
   notes: string;
 }
 
+/** Effective recurrence implied by the cadence (placement defines the time). */
 function rulePayload(s: FormState): RuleShape {
+  const daily = s.cadence === "daily";
+  const weekly = s.cadence === "weekly";
+  const monthly = s.cadence === "monthly";
+  const type: RecurrenceRuleType = daily || weekly ? "weekly_days" : monthly ? "monthly_date" : s.ruleType;
+  const days =
+    type === "weekly_days" ? (daily ? DOW_ORDER : DOW_ORDER.filter((d) => s.daysOfWeek.has(d))) : null;
   return {
-    ruleType: s.ruleType,
-    daysOfWeek: s.ruleType === "weekly_days" ? DOW_ORDER.filter((d) => s.daysOfWeek.has(d)) : null,
-    intervalDays: s.ruleType === "interval_days" ? Math.max(1, Math.round(s.intervalDays)) : null,
-    dayOfMonth: s.ruleType === "monthly_date" ? s.dayOfMonth : null,
+    ruleType: type,
+    daysOfWeek: days,
+    intervalDays: type === "interval_days" ? Math.max(1, Math.round(s.intervalDays)) : null,
+    dayOfMonth: type === "monthly_date" ? s.dayOfMonth : null,
     monthWeek: null,
     monthDow: null,
     startDate: "01",
@@ -86,13 +101,15 @@ export function TaskForm({
       return;
     }
     const rule = store.recurrenceRules.find((r) => r.taskId === task.id);
+    const cadence = task.cadence ?? "custom";
     setForm({
       name: task.name,
       duration: task.durationMinutes,
       categoryId: task.categoryId,
       assignees: new Set(assigneesOfTask(task.id).map((u) => u.id)),
+      cadence,
       ruleType: rule?.ruleType ?? "none",
-      daysOfWeek: new Set(rule?.daysOfWeek ?? []),
+      daysOfWeek: cadence === "weekly" ? new Set(rule?.daysOfWeek ?? [1, 2, 3, 4, 5]) : new Set(rule?.daysOfWeek ?? []),
       intervalDays: rule?.intervalDays ?? 2,
       dayOfMonth: rule?.dayOfMonth ?? 1,
       notes: task.notes ?? "",
@@ -123,6 +140,17 @@ export function TaskForm({
       return { ...f, daysOfWeek: days };
     });
 
+  const setCadence = (cadence: TaskCadence): void =>
+    setForm((f) => {
+      if (cadence === "daily") return { ...f, cadence, ruleType: "weekly_days", daysOfWeek: new Set(DOW_ORDER) };
+      if (cadence === "weekly") {
+        const days = f.daysOfWeek.size > 0 ? f.daysOfWeek : new Set([1, 2, 3, 4, 5]);
+        return { ...f, cadence, ruleType: "weekly_days", daysOfWeek: days };
+      }
+      if (cadence === "monthly") return { ...f, cadence, ruleType: "monthly_date" };
+      return { ...f, cadence };
+    });
+
   const save = async (): Promise<void> => {
     if (!form.name.trim()) {
       toast.error("Give the task a name first");
@@ -137,7 +165,8 @@ export function TaskForm({
           notes: form.notes || null,
           categoryId: form.categoryId,
           assigneeIds: [...form.assignees],
-          recurrence: form.ruleType === "none" ? undefined : rulePayload(form),
+          cadence: form.cadence,
+          recurrence: form.cadence === "custom" && form.ruleType === "none" ? undefined : rulePayload(form),
         });
         toast.success(`“${form.name.trim()}” added to the library`);
       } else {
@@ -145,7 +174,8 @@ export function TaskForm({
           task.name !== form.name.trim() ||
           task.durationMinutes !== form.duration ||
           task.notes !== (form.notes || null) ||
-          task.categoryId !== form.categoryId;
+          task.categoryId !== form.categoryId ||
+          task.cadence !== form.cadence;
         const assigneesChanged =
           JSON.stringify([...form.assignees].sort()) !==
           JSON.stringify(assigneesOfTask(task.id).map((u) => u.id).sort());
@@ -258,6 +288,25 @@ export function TaskForm({
               </div>
             </fieldset>
             <fieldset className="fieldset p-0 gap-2 min-w-0">
+              <legend className="fieldset-legend text-xs">Cadence</legend>
+              <div className="join w-full" role="group" aria-label="Cadence">
+                {CADENCE_OPTIONS.map((c) => (
+                  <button
+                    type="button"
+                    key={c.value}
+                    className={`join-item btn btn-sm flex-1 px-1${form.cadence === c.value ? " btn-primary" : ""}`}
+                    onClick={() => setCadence(c.value)}
+                    aria-pressed={form.cadence === c.value}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+
+          {form.cadence === "custom" && (
+            <fieldset className="fieldset p-0 gap-2 min-w-0">
               <legend className="fieldset-legend text-xs">Frequency</legend>
               <select
                 id="task-frequency"
@@ -272,9 +321,9 @@ export function TaskForm({
                 <option value="monthly_date">On a specific template day</option>
               </select>
             </fieldset>
-          </div>
+          )}
 
-          {form.ruleType !== "none" && (
+          {form.cadence === "custom" && form.ruleType !== "none" && (
             <div className="flex flex-col gap-3">
               {form.ruleType === "weekly_days" && (
                 <div className="flex gap-1" role="group" aria-label="Days of week">
@@ -325,6 +374,45 @@ export function TaskForm({
                 </label>
               )}
               <p className="text-xs font-medium accent-text">{preview}</p>
+            </div>
+          )}
+
+          {form.cadence !== "custom" && (
+            <div className="flex flex-col gap-3">
+              {form.cadence === "daily" && (
+                <p className="text-xs opacity-70">Every single day — the time comes when you place it.</p>
+              )}
+              {form.cadence === "weekly" && (
+                <div className="flex gap-1" role="group" aria-label="Days of week">
+                  {DOW_ORDER.map((d, i) => (
+                    <button
+                      type="button"
+                      key={d}
+                      className={`btn btn-sm btn-square${form.daysOfWeek.has(d) ? " btn-primary" : ""}`}
+                      onClick={() => toggleDay(d)}
+                      aria-pressed={form.daysOfWeek.has(d)}
+                      title={DOW_LONG[i]}
+                    >
+                      {DOW_SHORT[i]}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {form.cadence === "monthly" && (
+                <label className="flex items-center gap-2 text-sm">
+                  Template day
+                  <input
+                    type="number"
+                    className="input input-sm w-20"
+                    min={1}
+                    max={TEMPLATE_DAYS}
+                    value={form.dayOfMonth}
+                    onChange={(e) => set("dayOfMonth", Math.min(TEMPLATE_DAYS, Math.max(1, Number(e.target.value) || 1)))}
+                  />
+                  <span className="opacity-50">(Day {form.dayOfMonth} of the 30-day template)</span>
+                </label>
+              )}
+              <p className="text-xs font-medium text-primary">{preview}</p>
             </div>
           )}
 
@@ -446,6 +534,7 @@ function blankForm(): FormState {
     duration: 45,
     categoryId: null,
     assignees: new Set<number>(),
+    cadence: "custom",
     ruleType: "none",
     daysOfWeek: new Set<number>(),
     intervalDays: 2,

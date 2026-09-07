@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Task } from "@planner/shared";
+import type { Task, TaskCadence } from "@planner/shared";
 import { describeRule } from "@planner/shared";
 import { usePlannerStore, assigneesOfTask, ruleForTask, categoryById } from "../store";
 import { AvatarStack } from "../components/Avatar";
@@ -9,17 +9,37 @@ import { CategoryManager } from "../components/CategoryManager";
 import { scheduledOccurrenceCount } from "../components/library/TaskLibrary";
 import { toast } from "../store/toasts";
 
+type CadenceFilter = "all" | TaskCadence;
+
+const CADENCE_SEGMENTS: Array<{ value: CadenceFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "custom", label: "Other" },
+];
+
+export const CADENCE_BADGE: Record<TaskCadence, { label: string; cls: string }> = {
+  daily: { label: "Daily", cls: "badge-success bg-success/15 text-success" },
+  weekly: { label: "Weekly", cls: "badge-info bg-info/15 text-info" },
+  monthly: { label: "Monthly", cls: "badge-secondary bg-secondary/15 text-secondary" },
+  custom: { label: "Custom", cls: "badge-ghost" },
+};
+
 /** Task Library tab (REQUIREMENTS.md §2.1): manage tasks, filter, add/edit. */
 export default function TasksView(): React.JSX.Element {
   const tasks = usePlannerStore((s) => s.tasks);
   const categories = usePlannerStore((s) => s.categories);
+  const [cadence, setCadence] = useState<CadenceFilter>("all");
   const [filter, setFilter] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [managerOpen, setManagerOpen] = useState(false);
 
   const active = useMemo(() => tasks.filter((t) => t.active), [tasks]);
-  const visible = active.filter((t) => filter == null || t.categoryId === filter);
+  const visible = active.filter(
+    (t) => (cadence === "all" || t.cadence === cadence) && (filter == null || t.categoryId === filter),
+  );
 
   return (
     <section>
@@ -47,6 +67,17 @@ export default function TasksView(): React.JSX.Element {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 mb-2" role="group" aria-label="Cadence filter">
+        {CADENCE_SEGMENTS.map((c) => (
+          <button
+            key={c.value}
+            className={`btn btn-xs rounded-full${cadence === c.value ? " btn-primary" : " btn-ghost"}`}
+            onClick={() => setCadence(c.value)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <span className="text-xs opacity-70 mr-1">Filter:</span>
         <button
@@ -77,7 +108,7 @@ export default function TasksView(): React.JSX.Element {
             <p className="text-sm opacity-60 max-w-sm">
               {active.length === 0
                 ? "Add your first routine — a chore, a school run, dinner prep — and then plan it on the calendar."
-                : "No tasks match this category filter."}
+                : "No tasks match this cadence + category filter."}
             </p>
             {active.length === 0 && (
               <button
@@ -149,10 +180,13 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }): React.J
 
         <div className="flex flex-wrap gap-1.5 text-[10px]">
           <span className="badge badge-ghost border-base-content/10 gap-1">🕒 {task.durationMinutes} min</span>
+          <span className={`badge gap-1 border-0 ${CADENCE_BADGE[task.cadence].cls}`}>
+            🔁 {CADENCE_BADGE[task.cadence].label}
+          </span>
           <span
             className={`badge gap-1 border-0 ${rule && rule.ruleType !== "none" ? "badge-primary" : "badge-warning"}`}
           >
-            🔁 {freqLabel}
+            {freqLabel}
           </span>
           {scheduledTotal > 0 ? (
             <span className="badge badge-ghost border-base-content/10 gap-1">📅 {scheduledTotal}× scheduled</span>
