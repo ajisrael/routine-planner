@@ -97,10 +97,41 @@
     </details>
   </section>
 
+  <!-- ============ applied decisions ============ -->
+  <section class="flex flex-col gap-4">
+    <h2 class="text-xl font-bold">Applied decisions (commit 5b093aa)</h2>
+    <div class="grid gap-3 md:grid-cols-2">
+      <div class="card bg-base-100 border border-success/40">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">B · Slim stepper in the header</h3>
+          <p class="text-sm muted">The four hub cards are gone. One thin DaisyUI <code class="kbd kbd-sm">steps</code> row sits under the Back/Next controls: numbered dots, ✓ for finished steps, click any step to jump, and a small warning badge only while a scale is incomplete. The calendar gained the reclaimed row.</p>
+        </div>
+      </div>
+      <div class="card bg-base-100 border border-success/40">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">Add-task noise removed</h3>
+          <p class="text-sm muted">The inline quick-add form is deleted. The rail now shows a single <b>+ Add task</b> button that opens the same TaskForm dialog the Tasks tab uses, with the stage's cadence preselected (daily opens with Daily pressed). One add experience everywhere.</p>
+        </div>
+      </div>
+      <div class="card bg-base-100 border border-success/40">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">Feature visibility per your picks</h3>
+          <p class="text-sm muted">Person filter chips, conflict badge and rail category chips stay in setup. The day/week/month switcher is hidden in setup stages; in monthly it appears only inside a day drill, where "month" is the way back - switcher only, no dedicated button, as chosen.</p>
+        </div>
+      </div>
+      <div class="card bg-base-100 border border-success/40">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">Empty stages unchanged</h3>
+          <p class="text-sm muted">The quiet text hint stays ("Nothing here yet - add one above…"), per your call. The + Add task button above it is the louder affordance.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ current state screenshots ============ -->
   <section class="flex flex-col gap-4">
-    <h2 class="text-xl font-bold">Current state (real screenshots)</h2>
-    <p class="muted text-sm">Same view, four scopes. Note the wizard chrome above each one: header row + four hub cards - that's ~90px of chrome before the calendar starts.</p>
+    <h2 class="text-xl font-bold">Current state (real screenshots, post-decisions)</h2>
+    <p class="muted text-sm">Same view, four scopes, new chrome. Daily/weekly/monthly open with one chrome row + stepper; the monthly drill adds the switcher as its way back.</p>
     <div role="tablist" class="tabs tabs-box self-start">
       <input type="radio" name="shots" role="tab" class="tab" aria-label="Hub" checked>
       <div role="tabpanel" class="tab-content pt-4">
@@ -236,62 +267,6 @@
       </article>
     </div>
     <p class="text-sm muted">Recommendation: <b>B</b> as the default chrome, optionally layered with <b>D</b> later for the first-run moment. B removes a chrome row, keeps all four statuses one click away, and is a ~30-line change inside SetupView. A is the fallback if you value the always-visible status cards over the vertical space.</p>
-  </section>
-
-  <!-- ============ decisions ============ -->
-  <section class="flex flex-col gap-4">
-    <h2 class="text-xl font-bold">Your calls</h2>
-    <p class="muted text-sm">Pick per question and queue the answer - each submit sends exactly that one answer.</p>
-
-    <div class="grid gap-4 lg:grid-cols-2">
-
-      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="chrome-direction"
-        onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('chrome'); if (v) window.lavish.queuePrompt('Setup chrome direction: ' + v, { tag: 'decision', text: 'Chrome direction: ' + v, element: event.currentTarget, data: { question: 'chrome-direction', answer: v } });">
-        <div class="card-body p-4 gap-2">
-          <h3 class="font-bold text-sm">1 · Wizard chrome direction</h3>
-          <label class="label"><input type="radio" name="chrome" value="A - keep hub cards" class="radio radio-sm"> <span>A - keep hub cards</span></label>
-          <label class="label"><input type="radio" name="chrome" value="B - slim stepper in header" class="radio radio-sm"> <span>B - slim stepper in header (recommended)</span></label>
-          <label class="label"><input type="radio" name="chrome" value="C - floating coach bar" class="radio radio-sm"> <span>C - floating coach bar</span></label>
-          <label class="label"><input type="radio" name="chrome" value="B now + D for first-run" class="radio radio-sm"> <span>B now, immersive D for first-run later</span></label>
-          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
-        </div>
-      </form>
-
-      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="plan-view-features"
-        onsubmit="event.preventDefault(); const f = new FormData(event.currentTarget); const picked = f.getAll('feat').join('; ') || 'none'; window.lavish.queuePrompt('Setup plan-view features to keep: ' + picked, { tag: 'decision', text: 'Keep in setup: ' + picked, element: event.currentTarget, data: { question: 'plan-view-features', answer: picked } });">
-        <div class="card-body p-4 gap-2">
-          <h3 class="font-bold text-sm">2 · Plan-view features inside setup</h3>
-          <p class="muted text-xs">Which Plan-tab features should stay visible in the setup stages?</p>
-          <label class="label"><input type="checkbox" name="feat" value="person filter chips" class="checkbox checkbox-sm"> <span>Person filter chips</span></label>
-          <label class="label"><input type="checkbox" name="feat" value="conflict badge" class="checkbox checkbox-sm"> <span>Conflict badge</span></label>
-          <label class="label"><input type="checkbox" name="feat" value="day/week/month switcher in monthly" class="checkbox checkbox-sm"> <span>Day/week/month switcher (monthly stage)</span></label>
-          <label class="label"><input type="checkbox" name="feat" value="category chips in rail" class="checkbox checkbox-sm"> <span>Category filter chips in the rail</span></label>
-          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
-        </div>
-      </form>
-
-      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="monthly-drill"
-        onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('drill'); if (v) window.lavish.queuePrompt('Monthly drill return: ' + v, { tag: 'decision', text: 'Monthly drill return: ' + v, element: event.currentTarget, data: { question: 'monthly-drill', answer: v } });">
-        <div class="card-body p-4 gap-2">
-          <h3 class="font-bold text-sm">3 · Getting back from a day drill (monthly)</h3>
-          <label class="label"><input type="radio" name="drill" value="switcher only (current)" class="radio radio-sm"> <span>Switcher only - click "month" (current)</span></label>
-          <label class="label"><input type="radio" name="drill" value="dedicated back button" class="radio radio-sm"> <span>Dedicated "← Month" button like the old drill</span></label>
-          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
-        </div>
-      </form>
-
-      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="empty-state"
-        onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('nudge'); if (v) window.lavish.queuePrompt('Empty-stage nudge: ' + v, { tag: 'decision', text: 'Empty-stage nudge: ' + v, element: event.currentTarget, data: { question: 'empty-state', answer: v } });">
-        <div class="card-body p-4 gap-2">
-          <h3 class="font-bold text-sm">4 · Empty stages</h3>
-          <p class="muted text-xs">Today an empty stage shows "Nothing here yet - add one above…". Should the first empty stage get a stronger nudge?</p>
-          <label class="label"><input type="radio" name="nudge" value="keep current text hint" class="radio radio-sm"> <span>Keep the text hint - it's enough</span></label>
-          <label class="label"><input type="radio" name="nudge" value="big CTA with inline name field" class="radio radio-sm"> <span>Bigger CTA - focus the name field automatically</span></label>
-          <label class="label"><input type="radio" name="nudge" value="skip suggestion" class="radio radio-sm"> <span>Suggest skipping the scale instead</span></label>
-          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
-        </div>
-      </form>
-    </div>
   </section>
 
   <!-- ============ risks ============ -->
