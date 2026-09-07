@@ -50,7 +50,7 @@ export function templateWeekStart(week: number): number {
 
 export type RuleShape = Pick<
   RecurrenceRule,
-  "ruleType" | "daysOfWeek" | "intervalDays" | "dayOfMonth" | "monthWeek" | "monthDow" | "startDate"
+  "ruleType" | "daysOfWeek" | "intervalDays" | "weeksInterval" | "dayOfMonth" | "monthWeek" | "monthDow" | "startDate"
 >;
 
 /**
@@ -58,6 +58,9 @@ export type RuleShape = Pick<
  * inclusive. Semantics (DATA_MODEL.md §7, template month):
  * - `weekly_days`: every template day whose weekday is listed.
  * - `interval_days`: every N days counted from Day 1.
+ * - `weekly_interval`: every N weeks on the listed weekdays, each weekday
+ *   anchored at its first occurrence in Days 1–7 (e.g. every 2 weeks on
+ *   Mon+Wed → Days 1, 3, 15, 17).
  * - `monthly_date`: that exact template day ("Day 15 of the template").
  * - `monthly_weekday`: not representable in the template — matches nothing.
  */
@@ -78,6 +81,14 @@ export function occurrenceDays(
       case "interval_days":
         if ((day - 1) % (rule.intervalDays ?? 1) === 0) out.push(day);
         break;
+      case "weekly_interval": {
+        const n = Math.max(1, rule.weeksInterval ?? 1);
+        for (const w of dows) {
+          // each weekday anchors at its first occurrence (Day w)
+          if (day >= w && (day - w) % (7 * n) === 0) out.push(day);
+        }
+        break;
+      }
       case "monthly_date":
         if (rule.dayOfMonth != null && day === rule.dayOfMonth) out.push(day);
         break;
@@ -104,6 +115,10 @@ export function describeRule(rule: RuleShape): string {
     }
     case "interval_days":
       return `Every ${rule.intervalDays ?? 1}d`;
+    case "weekly_interval": {
+      const days = [...(rule.daysOfWeek ?? [])].sort((a, b) => a - b).map((d) => DOW_LABELS[d]).join(", ");
+      return `Every ${rule.weeksInterval ?? 1} weeks on ${days}`;
+    }
     case "monthly_date":
       return `Day ${rule.dayOfMonth ?? 1} of template`;
     case "monthly_weekday":

@@ -47,6 +47,7 @@ export type RecurrenceRuleType =
   | "none"
   | "weekly_days"
   | "interval_days"
+  | "weekly_interval"
   | "monthly_date"
   | "monthly_weekday";
 
@@ -59,6 +60,8 @@ export interface RecurrenceRule {
   daysOfWeek: number[] | null;
   /** Every N days. For `interval_days` (every 2 weeks = 14). */
   intervalDays: number | null;
+  /** Every N weeks (for `weekly_interval`). */
+  weeksInterval: number | null;
   /** Day of month 1…31. For `monthly_date`. */
   dayOfMonth: number | null;
   /** 1…4 or -1 for last. For `monthly_weekday`. */
