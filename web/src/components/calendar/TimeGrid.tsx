@@ -31,6 +31,8 @@ export interface TimeGridProps {
   interactive: boolean;
   armedTask?: Task | null;
   ghost?: Ghost | null;
+  /** Task ids shown read-only (visible context but not draggable/resizable). */
+  lockTaskIds?: Set<number> | null;
   onEventClick?: (event: ScheduledEvent) => void;
   /** Armed tap-to-place: click a slot with a task armed. */
   onSlotClick?: (date: string, startMinute: number) => void;
@@ -49,6 +51,7 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
     interactive,
     armedTask,
     ghost,
+    lockTaskIds,
     onEventClick,
     onSlotClick,
     onResize,
@@ -171,6 +174,7 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
               onEventContextMenu={onEventContextMenu}
               armedTask={armedTask ?? null}
               hourHeight={hourHeight}
+              lockTaskIds={lockTaskIds}
             />
           ))}
         </div>
@@ -192,6 +196,7 @@ function DayColumn({
   onEventContextMenu,
   armedTask,
   hourHeight,
+  lockTaskIds,
 }: {
   date: string;
   column: number;
@@ -205,6 +210,7 @@ function DayColumn({
   onEventContextMenu?: (event: ScheduledEvent, e: React.MouseEvent) => void;
   armedTask: Task | null;
   hourHeight: number;
+  lockTaskIds?: Set<number> | null;
 }): React.JSX.Element {
   const { isOver, setNodeRef } = useDroppable({
     id: `day-${date}`,
@@ -240,6 +246,7 @@ function DayColumn({
           onResize={onResize}
           onContextMenu={onEventContextMenu}
           hourHeight={hourHeight}
+          lockTaskIds={lockTaskIds}
         />
       ))}
       {ghost && (
@@ -263,6 +270,7 @@ function EventBlockView({
   onResize,
   onContextMenu,
   hourHeight,
+  lockTaskIds,
 }: {
   event: ScheduledEvent;
   pack: { col: number; cols: number } | undefined;
@@ -272,14 +280,16 @@ function EventBlockView({
   onResize?: (eventId: number, endMinute: number) => void;
   onContextMenu?: (event: ScheduledEvent, e: React.MouseEvent) => void;
   hourHeight: number;
+  lockTaskIds?: Set<number> | null;
 }): React.JSX.Element {
   const tasks = usePlannerStore((s) => s.tasks);
   const users = usePlannerStore((s) => s.users);
   const assignees = usePlannerStore((s) => s.assignees);
+  const editable = interactive && !(lockTaskIds?.has(event.taskId) ?? false);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `event-${event.id}`,
     data: { type: "event", eventId: event.id },
-    disabled: !interactive,
+    disabled: !editable,
   });
 
   const task = tasks.find((t) => t.id === event.taskId);
@@ -299,7 +309,7 @@ function EventBlockView({
   // (DESIGN.md §6.3). stopPropagation keeps dnd-kit from starting a drag.
   const skipClick = useRef(false);
   const onResizePointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (!interactive || !onResize) return;
+    if (!editable || !onResize) return;
     e.stopPropagation();
     e.preventDefault();
     const colEl = (e.currentTarget.parentElement as HTMLElement).parentElement as HTMLElement;
@@ -368,7 +378,7 @@ function EventBlockView({
     <div
       ref={setNodeRef}
       className={`event-block${conflicted ? " conflict" : ""}${isDragging ? " dragging" : ""}${
-        interactive ? "" : " static"
+        editable ? "" : " static"
       }${compact ? " compact" : ""}`}
       style={style}
       onClick={handleClick}
@@ -385,7 +395,7 @@ function EventBlockView({
       }`}
     >
       {content}
-      {interactive && onResize && (
+      {editable && onResize && (
         <div className="ev-resize" onPointerDown={onResizePointerDown} aria-label={`Resize ${task?.name ?? "event"}`} />
       )}
     </div>

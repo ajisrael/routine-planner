@@ -11,6 +11,8 @@ export interface MonthGridProps {
   conflicts: Map<number, number[]>;
   interactive: boolean;
   armedTask?: Task | null;
+  /** Task ids shown read-only (not draggable). */
+  lockTaskIds?: Set<number> | null;
   onEventClick?: (event: ScheduledEvent) => void;
   onDayClick?: (date: string) => void;
   onSlotClick?: (date: string) => void;
@@ -25,6 +27,7 @@ export function MonthGrid({
   conflicts,
   interactive,
   armedTask,
+  lockTaskIds,
   onEventClick,
   onDayClick,
   onSlotClick,
@@ -68,6 +71,7 @@ export function MonthGrid({
             interactive={interactive}
             armed={armed}
             armedTaskName={armedTask?.name ?? ""}
+            lockTaskIds={lockTaskIds}
             tasks={tasks}
             onEventClick={onEventClick}
             onDayClick={onDayClick}
@@ -90,6 +94,7 @@ function MonthCell({
   interactive,
   armed,
   armedTaskName,
+  lockTaskIds,
   tasks,
   onEventClick,
   onDayClick,
@@ -102,6 +107,7 @@ function MonthCell({
   interactive: boolean;
   armed: boolean;
   armedTaskName: string;
+  lockTaskIds?: Set<number> | null;
   tasks: Task[];
   onEventClick?: (event: ScheduledEvent) => void;
   onDayClick?: (date: string) => void;
@@ -148,6 +154,7 @@ function MonthCell({
           conflicted={conflicts.has(ev.id)}
           interactive={interactive}
           task={tasks.find((t) => t.id === ev.taskId)}
+          lockTaskIds={lockTaskIds}
           onEventClick={onEventClick}
           onContextMenu={onEventContextMenu}
         />
@@ -162,6 +169,7 @@ function MonthPill({
   conflicted,
   interactive,
   task,
+  lockTaskIds,
   onEventClick,
   onContextMenu,
 }: {
@@ -169,14 +177,16 @@ function MonthPill({
   conflicted: boolean;
   interactive: boolean;
   task: Task | undefined;
+  lockTaskIds?: Set<number> | null;
   onEventClick?: (event: ScheduledEvent) => void;
   onContextMenu?: (event: ScheduledEvent, e: React.MouseEvent) => void;
 }): React.JSX.Element {
   const category = categoryById(task?.categoryId ?? null);
+  const draggable = interactive && task != null && !(lockTaskIds?.has(task.id) ?? false);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `event-${event.id}`,
     data: { type: "event", eventId: event.id, fromMonth: true },
-    disabled: !interactive,
+    disabled: !draggable,
   });
   // Long-press (touch) opens the occurrence menu - iOS never fires contextmenu.
   const longPress = useLongPress((x, y) => onContextMenu?.(event, syntheticContextEvent(x, y)));
