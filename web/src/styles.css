@@ -477,10 +477,61 @@ button.month-pill.pill-dragging {
   border-radius: 0.5rem;
   padding: 7px 10px;
   text-align: center;
-}
-.join .btn {
-  line-height: 1;
+  color: var(--accent-text);
 }
 .freq-preview {
   background: color-mix(in oklab, var(--color-warning) 14%, transparent);
+}
+
+/* Duration stepper: one pill - children stretch to the fixed h-10 row. */
+.duration-join {
+  overflow: hidden;
+}
+.duration-join > * {
+  height: 100%;
+}
+.duration-join > *:first-child {
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+}
+.duration-join > *:last-child {
+  border-top-right-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+}
+.duration-join .btn {
+  height: 100%;
+  line-height: 1;
+  padding-top: 0;
+  padding-bottom: 0;
+  box-shadow: none;
+  border: none;
+}
+
+/* "Repeat every" N stepper (approved artifact). */
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.stepper button {
+  width: 30px;
+  background: var(--color-base-200);
+  border: none;
+  color: var(--color-base-content);
+  cursor: pointer;
+  font-size: 15px;
+}
+.stepper button:hover {
+  background: color-mix(in oklab, var(--color-primary) 16%, var(--color-base-200));
+}
+.stepper .val {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--color-base-300);
+  font-weight: 700;
+  font-size: 13px;
+  min-width: 44px;
+  justify-content: center;
 }

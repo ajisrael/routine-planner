@@ -362,7 +362,7 @@ export function TaskForm({
               </fieldset>
               <fieldset className="fieldset p-0 gap-2 min-w-0">
                 <legend className="fieldset-legend text-xs">Duration *</legend>
-                <div className="join w-full items-stretch h-10">
+                <div className="join duration-join w-full items-stretch h-10">
                   <button type="button" className="join-item btn btn-sm" onClick={() => stepDuration(-15)}>
                     −
                   </button>
