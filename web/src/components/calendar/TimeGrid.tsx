@@ -4,6 +4,7 @@ import type { ScheduledEvent, Task } from "@planner/shared";
 import { SLOT_MINUTES } from "@planner/shared";
 import { usePlannerStore, categoryById } from "../../store";
 import { dayDowLabel, dayNumber, fmtTime } from "../../lib/dates";
+import { useLongPress, syntheticContextEvent } from "../../lib/longPress";
 import { AvatarStack } from "../Avatar";
 import {
   DEFAULT_HOUR_HEIGHT,
@@ -99,7 +100,7 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
   // Full 24h window; grows if an event somehow ends past midnight.
   const lastHour = Math.max(END_HOUR, ...events.map((e) => Math.ceil(e.endMinute / 60)));
   const gridHeight = (lastHour - START_HOUR) * hourHeight;
-  const columns = `56px repeat(${dates.length}, minmax(148px, 1fr))`;
+  const columns = `56px repeat(${dates.length}, minmax(var(--day-min), 1fr))`;
 
   return (
     // Fixed "window": the card constrains the height; this is the scroll
@@ -110,12 +111,12 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
       className="lib-scroll min-h-0 flex-1 overflow-auto rounded-xl border border-base-content/10"
       style={{ ["--hour-h" as string]: `${hourHeight}px` } as React.CSSProperties}
     >
-      <div style={{ minWidth: single ? undefined : 900 }}>
+      <div style={{ minWidth: single ? undefined : `calc(56px + ${dates.length} * var(--day-min))` }}>
         <div
           className="plan-grid sticky top-0 z-20 bg-base-100"
           style={{ gridTemplateColumns: columns }}
         >
-          <div className="gutter-spacer" />
+          <div className="gutter-spacer sticky left-0 z-[1] border-r border-base-content/10 bg-base-100" />
           {dates.map((date) => (
             <div
               key={date}
@@ -127,14 +128,16 @@ export function TimeGrid(props: TimeGridProps): React.JSX.Element {
           ))}
         </div>
         <div className="plan-grid" style={{ gridTemplateColumns: columns, height: gridHeight }}>
-          {/* Hour gutter: full-width grid item, pinned to the left edge while
-              the columns scroll under it (sticky within the scrollport). */}
+          {/* Hour gutter: pinned to the left edge while columns scroll under
+              it (sticky). The grid item spans 1 / -1 for a wide constraint box
+              but is itself only 56px wide - a full-width element would have no
+              room to travel and would never stick. */}
           <div
-            className="pointer-events-none sticky left-0 z-10"
+            className="pointer-events-none sticky left-0 z-10 w-14 border-r border-base-content/10 bg-base-100"
             style={{ gridRow: 1, gridColumn: "1 / -1", height: gridHeight }}
           >
             {Array.from({ length: lastHour - START_HOUR }, (_, i) => (
-              <div key={i} className="gutter-cell bg-base-100">
+              <div key={i} className="gutter-cell">
                 {String(START_HOUR + i).padStart(2, "0")}:00
               </div>
             ))}
@@ -320,10 +323,24 @@ function EventBlockView({
     window.addEventListener("pointerup", up);
   };
 
+  // Long-press (touch) opens the occurrence menu - iOS never fires
+  // contextmenu, so touch needs its own path to the same actions.
+  const longPress = useLongPress((x, y) => onContextMenu?.(event, syntheticContextEvent(x, y)));
+
   const handleClick = (): void => {
-    if (skipClick.current) return;
+    if (skipClick.current || longPress.suppressed()) return;
     onClick?.(event);
   };
+
+  // dnd-kit's sensor listeners arrive as a spread; compose them with the
+  // long-press handlers so both see the same pointer events.
+  const dndListeners = listeners as Record<string, ((e: React.PointerEvent<HTMLDivElement>) => void) | undefined> | undefined;
+  const withDnd =
+    (key: string, mine: (e: React.PointerEvent<HTMLDivElement>) => void) =>
+    (e: React.PointerEvent<HTMLDivElement>): void => {
+      mine(e);
+      dndListeners?.[key]?.(e);
+    };
 
   const content = compact ? (
     <span className="font-semibold truncate block" title={`${task?.name ?? ""} ${fmtTime(event.startMinute)}`}>
@@ -358,6 +375,10 @@ function EventBlockView({
       onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(event, e); } : undefined}
       {...listeners}
       {...attributes}
+      onPointerDown={withDnd("onPointerDown", longPress.onPointerDown)}
+      onPointerMove={withDnd("onPointerMove", longPress.onPointerMove)}
+      onPointerUp={withDnd("onPointerUp", longPress.onPointerUp)}
+      onPointerCancel={withDnd("onPointerCancel", longPress.onPointerCancel)}
       role="button"
       aria-label={`${task?.name ?? "Event"} ${fmtTime(event.startMinute)} to ${fmtTime(event.endMinute)}${
         conflicted ? ", conflict" : ""

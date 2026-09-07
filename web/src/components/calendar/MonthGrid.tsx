@@ -4,6 +4,7 @@ import type { ScheduledEvent, Task } from "@planner/shared";
 import { TEMPLATE_DAYS } from "@planner/shared";
 import { usePlannerStore, categoryById } from "../../store";
 import { dayNumber, dayDowLabel, fmtTime, weekOf } from "../../lib/dates";
+import { useLongPress, syntheticContextEvent } from "../../lib/longPress";
 
 export interface MonthGridProps {
   events: ScheduledEvent[];
@@ -177,6 +178,17 @@ function MonthPill({
     data: { type: "event", eventId: event.id, fromMonth: true },
     disabled: !interactive,
   });
+  // Long-press (touch) opens the occurrence menu - iOS never fires contextmenu.
+  const longPress = useLongPress((x, y) => onContextMenu?.(event, syntheticContextEvent(x, y)));
+  // dnd-kit's sensor listeners arrive as a spread; compose them with the
+  // long-press handlers so both see the same pointer events.
+  const dndListeners = listeners as Record<string, ((e: React.PointerEvent) => void) | undefined> | undefined;
+  const withDnd =
+    (key: string, mine: (e: React.PointerEvent) => void) =>
+    (e: React.PointerEvent): void => {
+      mine(e);
+      dndListeners?.[key]?.(e);
+    };
 
   return (
     <button
@@ -185,6 +197,7 @@ function MonthPill({
       style={{ ["--ev-cat" as string]: category?.color ?? "var(--color-base-content)" }}
       onClick={(e) => {
         e.stopPropagation();
+        if (longPress.suppressed()) return;
         onEventClick?.(event);
       }}
       onContextMenu={
@@ -198,6 +211,10 @@ function MonthPill({
       }
       {...listeners}
       {...attributes}
+      onPointerDown={withDnd("onPointerDown", longPress.onPointerDown)}
+      onPointerMove={withDnd("onPointerMove", longPress.onPointerMove)}
+      onPointerUp={withDnd("onPointerUp", longPress.onPointerUp)}
+      onPointerCancel={withDnd("onPointerCancel", longPress.onPointerCancel)}
       title={`${task?.name ?? "Event"} · ${fmtTime(event.startMinute)}`}
       aria-label={`${task?.name ?? "Event"} ${fmtTime(event.startMinute)}${conflicted ? ", conflict" : ""}`}
     >

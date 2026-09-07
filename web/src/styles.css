@@ -68,11 +68,20 @@
 /* ---------- calendar primitives (plain CSS on theme vars, DESIGN.md §3.4) ---------- */
 :root {
   --hour-h: 60px;
+  --day-min: 148px;
+}
+
+/* Phone: narrower day columns so a third day peeks past the viewport edge,
+   signaling that the week grid scrolls horizontally. */
+@media (max-width: 640px) {
+  :root {
+    --day-min: 120px;
+  }
 }
 
 .plan-grid {
   display: grid;
-  grid-template-columns: 56px repeat(7, minmax(148px, 1fr));
+  grid-template-columns: 56px repeat(7, minmax(var(--day-min), 1fr));
 }
 .plan-grid.single {
   grid-template-columns: 56px minmax(0, 1fr);
@@ -119,6 +128,9 @@
   font-size: 11px;
   line-height: 1.25;
   user-select: none;
+  /* Let dnd-kit own the pointer gesture: without this, touch drags are
+     cancelled by native scrolling (pointercancel) and the block never moves. */
+  touch-action: none;
   background: color-mix(in srgb, var(--ev-cat) 16%, var(--color-base-100));
   border-left: 4px solid var(--ev-cat);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -150,7 +162,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 9px;
+  height: 18px;
   cursor: ns-resize;
   touch-action: none;
 }
@@ -159,8 +171,8 @@
   position: absolute;
   left: 30%;
   right: 30%;
-  bottom: 3px;
-  height: 2px;
+  bottom: 6px;
+  height: 3px;
   border-radius: 2px;
   background: color-mix(in oklab, var(--color-base-content) 35%, transparent);
 }
@@ -244,6 +256,7 @@ button.month-pill {
   cursor: grab;
   width: 100%;
   text-align: left;
+  touch-action: none;
 }
 button.month-pill:active {
   cursor: grabbing;

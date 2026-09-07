@@ -280,9 +280,9 @@ export default function PlanView({ onOpenLibrary }: { onOpenLibrary: () => void 
             )}
 
             <p className="text-[11px] opacity-50">
-              Drag events to move · drag the bottom edge to resize (15-min snap) · right-click an event for
-              sync/delete actions · overlapping tasks that <b>share a person</b> get a red warning — overlaps
-              are allowed, you decide. Week {weekOf("29")} holds only Days 29–30.
+              Drag events to move · drag the bottom edge to resize (15-min snap) · long-press or right-click an
+              event for sync/delete actions · overlapping tasks that <b>share a person</b> get a red warning —
+              overlaps are allowed, you decide. Week {weekOf("29")} holds only Days 29–30.
             </p>
           </div>
         </div>
