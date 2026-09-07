@@ -432,6 +432,7 @@ button.month-pill.pill-dragging {
 }
 .seg button {
   flex: 1 1 0;
+  white-space: nowrap;
   border: none;
   background: transparent;
   color: var(--color-base-content);

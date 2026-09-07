@@ -492,7 +492,7 @@ export default function PlanView({
               ) : cad === "weekly" ? (
                 "Drop a task on a day to add that weekday at the shared time. Same-day drags re-anchor it; other-day drags swap the weekday; drop a block on its rail row to remove the weekday."
               ) : (
-                "Tap a date to open its day and pick a time - the task pins to that date every month. Monthly pills drag to another date to re-anchor."
+                "Open a task to set its frequency — Custom handles less common patterns (every N days or weeks). Drop or tap it onto the calendar to place it."
               )}
             </p>
           </div>
