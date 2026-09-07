@@ -50,6 +50,7 @@ export function mapRule(r: Record<string, unknown>): RecurrenceRule {
     ruleType: r.rule_type as RecurrenceRule["ruleType"],
     daysOfWeek: days,
     intervalDays: (r.interval_days as number | null) ?? null,
+    weeksInterval: (r.weeks_interval as number | null) ?? null,
     dayOfMonth: (r.day_of_month as number | null) ?? null,
     monthWeek: (r.month_week as number | null) ?? null,
     monthDow: (r.month_dow as number | null) ?? null,

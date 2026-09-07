@@ -13,6 +13,7 @@ const RULE_TYPES: RecurrenceRuleType[] = [
   "none",
   "weekly_days",
   "interval_days",
+  "weekly_interval",
   "monthly_date",
   "monthly_weekday",
 ];
@@ -23,6 +24,7 @@ interface RuleBody {
   ruleType: RecurrenceRuleType;
   daysOfWeek?: number[] | null;
   intervalDays?: number | null;
+  weeksInterval?: number | null;
   dayOfMonth?: number | null;
   monthWeek?: number | null;
   monthDow?: number | null;
@@ -84,6 +86,12 @@ function validateRule(body: RuleBody): string | null {
       return Number.isInteger(body.intervalDays) && (body.intervalDays as number) >= 1
         ? null
         : "intervalDays must be a positive integer";
+    case "weekly_interval": {
+      const okWeeks = Number.isInteger(body.weeksInterval) && (body.weeksInterval as number) >= 1;
+      const days = body.daysOfWeek ?? [];
+      const okDays = Array.isArray(days) && days.length > 0 && days.every((d) => Number.isInteger(d) && d >= 1 && d <= 7);
+      return okWeeks && okDays ? null : "weekly_interval requires weeksInterval >= 1 and a non-empty daysOfWeek";
+    }
     case "monthly_date":
       return Number.isInteger(body.dayOfMonth) &&
         (body.dayOfMonth as number) >= 1 &&
@@ -101,6 +109,7 @@ function writeRule(body: RuleBody, taskId: number, existingId: number | null): n
     body.ruleType,
     daysJson,
     body.ruleType === "interval_days" ? body.intervalDays : null,
+    body.ruleType === "weekly_interval" ? body.weeksInterval : null,
     body.ruleType === "monthly_date" ? body.dayOfMonth : null,
     body.ruleType === "monthly_weekday" ? body.monthWeek : null,
     body.ruleType === "monthly_weekday" ? body.monthDow : null,
@@ -108,14 +117,14 @@ function writeRule(body: RuleBody, taskId: number, existingId: number | null): n
   ] as const;
   if (existingId != null) {
     db.prepare(
-      `UPDATE recurrence_rules SET rule_type = ?, days_of_week = ?, interval_days = ?, day_of_month = ?, month_week = ?, month_dow = ?, start_date = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+      `UPDATE recurrence_rules SET rule_type = ?, days_of_week = ?, interval_days = ?, weeks_interval = ?, day_of_month = ?, month_week = ?, month_dow = ?, start_date = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
     ).run(...params, existingId);
     return existingId;
   }
   const info = db
     .prepare(
-      `INSERT INTO recurrence_rules (task_id, rule_type, days_of_week, interval_days, day_of_month, month_week, month_dow, start_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO recurrence_rules (task_id, rule_type, days_of_week, interval_days, weeks_interval, day_of_month, month_week, month_dow, start_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(taskId, ...params);
   return Number(info.lastInsertRowid);
@@ -333,7 +342,7 @@ tasksRouter.put("/:id/recurrence", (req: Request, res: Response) => {
         ).map((r) => r.id);
         db.prepare("UPDATE scheduled_events SET rule_id = NULL WHERE rule_id = ?").run(ruleId);
         db.prepare(
-          "UPDATE recurrence_rules SET rule_type = 'none', days_of_week = NULL, interval_days = NULL, day_of_month = NULL, month_week = NULL, month_dow = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
+          "UPDATE recurrence_rules SET rule_type = 'none', days_of_week = NULL, interval_days = NULL, weeks_interval = NULL, day_of_month = NULL, month_week = NULL, month_dow = NULL, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?",
         ).run(ruleId);
       } else {
         const ref = computeReference(id, body.refStartMinute ?? undefined);
