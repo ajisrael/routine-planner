@@ -5,20 +5,18 @@ import { describeRule } from "@planner/shared";
 import { usePlannerStore, assigneesOfTask, ruleForTask, categoryById, eventsOfTask } from "../../store";
 import { AvatarStack } from "../Avatar";
 import { CategoryDot } from "../Chips";
-import { QuickAddTask } from "../setup/QuickAddTask";
 import { isPlaced } from "../../lib/wizard/status";
 
-type SetupCadence = Exclude<TaskCadence, "custom">;
-
 /** Compact draggable task row list for the Plan rail (DESIGN.md §5.3).
- * In setup scopes it filters to one cadence, embeds the QuickAdd form and,
- * for weekly, doubles as the drop-to-remove-weekday zone. */
+ * In setup scopes it filters to one cadence and its "+ Add task" button opens
+ * the shared TaskForm dialog; for weekly, rows double as drop-to-remove
+ * weekday zones. */
 export function LibraryRail({
   armedTaskId,
   onArm,
   onOpenLibrary,
+  onAdd,
   cadenceFilter = null,
-  quickAdd,
   removeZone = false,
   placedBadge = false,
   title = "Task library",
@@ -27,8 +25,8 @@ export function LibraryRail({
   armedTaskId: number | null;
   onArm: (taskId: number | null) => void;
   onOpenLibrary?: () => void;
+  onAdd?: () => void;
   cadenceFilter?: TaskCadence | null;
-  quickAdd?: SetupCadence;
   removeZone?: boolean;
   placedBadge?: boolean;
   title?: string;
@@ -45,19 +43,25 @@ export function LibraryRail({
   return (
     <aside className="card h-full max-h-[45vh] min-h-0 flex-col lg:max-h-none bg-base-100 border border-base-content/10">
       <div className="card-body flex min-h-0 flex-1 flex-col gap-2 p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h3 className="font-bold text-sm">{title}</h3>
-          {onOpenLibrary && (
-            <button className="btn btn-ghost btn-xs" onClick={onOpenLibrary}>
-              Open →
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {onAdd && (
+              <button className="btn btn-primary btn-xs" onClick={onAdd}>
+                + Add task
+              </button>
+            )}
+            {onOpenLibrary && (
+              <button className="btn btn-ghost btn-xs" onClick={onOpenLibrary}>
+                Open →
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-[11px] opacity-60 leading-snug">
           {caption ?? "Drag a task onto the calendar — or tap it, then tap a slot (touch-friendly)."}
         </p>
-        {quickAdd && <QuickAddTask cadence={quickAdd} />}
-        {cadenceFilter == null && (
+        {categories.length > 0 && (
           <div className="flex flex-wrap gap-1">
             <FilterChip active={filter === null} onClick={() => setFilter(null)} label="All" />
             {categories.map((c) => (

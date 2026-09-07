@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" data-theme="pastel">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup is now the Plan view - what next?</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/daisyui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.5.19/themes.css">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.2.4/dist/index.global.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :where(.grid, .flex, .layout-grid, .layout-flex) > *,
+  :where([style*="display: grid"], [style*="display:grid"], [style*="display: flex"], [style*="display:flex"]) > * {
+    min-width: 0;
+  }
+  :where(p, h1, h2, h3, h4, h5, h6, li, dd, blockquote, figcaption, td, th, .badge, .label) {
+    overflow-wrap: anywhere;
+  }
+  :where(img, svg, video, canvas, iframe) {
+    max-width: 100%;
+    height: auto;
+  }
+  .shot { border: 1px solid oklch(from var(--color-base-content) l c h / 12%); border-radius: .75rem; width: 100%; display: block; }
+  .shot-frame { padding: .5rem; background: var(--color-base-100); border-radius: 1rem; box-shadow: 0 1px 4px oklch(from var(--color-base-content) l c h / 8%); }
+  .muted { opacity: .65; }
+  details.dim > summary { cursor: pointer; }
+</style>
+</head>
+<body class="bg-base-200 min-h-screen">
+<main class="max-w-5xl mx-auto px-4 py-8 flex flex-col gap-10">
+
+  <!-- ============ header ============ -->
+  <header class="flex flex-col gap-2">
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="badge badge-primary badge-sm">committed a5f9ae8</span>
+      <span class="badge badge-ghost badge-sm">8 files, +393 / −728</span>
+    </div>
+    <h1 class="text-3xl font-bold leading-tight">Setup is now the Plan view</h1>
+    <p class="muted max-w-3xl">
+      The three bespoke wizard stages (DailyStage / WeeklyStage / MonthlyStage + RoutineRail) are gone.
+      One <code class="kbd kbd-sm">PlanView</code> renders every surface: the Plan tab unscoped, and each setup
+      stage as the same view filtered to one cadence with pattern-placement semantics. What's left to decide is
+      <b>how much wizard chrome should wrap it</b> - that's what this page proposes. Annotate anything;
+      the decision forms at the bottom queue your picks.
+    </p>
+  </header>
+
+  <!-- ============ what changed ============ -->
+  <section class="flex flex-col gap-4">
+    <h2 class="text-xl font-bold">What the conversion did</h2>
+    <div class="grid gap-3 md:grid-cols-3">
+      <div class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">One component, five scopes</h3>
+          <p class="text-sm muted">Plan tab = no scope. Setup passes <code class="kbd kbd-sm">daily / weekly / monthly</code>:
+          the rail filters to that cadence, the calendar opens on the right range, and drops write whole patterns
+          (every day · those weekdays · that date) instead of single occurrences.</p>
+        </div>
+      </div>
+      <div class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">Same skills everywhere</h3>
+          <p class="text-sm muted">Drag from rail, armed tap-to-place, locked context tasks, ghost preview,
+          conflict badge, person chips: learn it once in setup, it's identical in Plan - and vice versa.</p>
+        </div>
+      </div>
+      <div class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">Semantics kept per scale</h3>
+          <p class="text-sm muted">Daily drop re-anchors the routine; weekly adds / swaps / removes weekdays;
+          monthly rail-drop opens that date's day armed. All verified in-browser with real pointer drags.</p>
+        </div>
+      </div>
+    </div>
+    <details class="dim bg-base-100 border border-base-content/10 rounded-xl px-4 py-3">
+      <summary class="text-sm font-semibold">Deleted &amp; kept (implementation detail)</summary>
+      <div class="grid gap-3 md:grid-cols-2 pt-3 text-sm">
+        <div>
+          <p class="font-semibold text-error text-xs uppercase tracking-wide mb-1">Deleted</p>
+          <ul class="list-disc pl-5 muted">
+            <li>web/src/components/setup/DailyStage.tsx</li>
+            <li>web/src/components/setup/WeeklyStage.tsx</li>
+            <li>web/src/components/setup/MonthlyStage.tsx</li>
+            <li>web/src/components/setup/RoutineRail.tsx</li>
+          </ul>
+        </div>
+        <div>
+          <p class="font-semibold text-success text-xs uppercase tracking-wide mb-1">Kept / grown</p>
+          <ul class="list-disc pl-5 muted">
+            <li>PlanView.tsx - gains a setup cadence scope</li>
+            <li>LibraryRail - gains quick-add, cadence filter, remove-zone, placed badges</li>
+            <li>PeopleStage - unchanged (no calendar involved)</li>
+            <li>Gotcha: stage switch must remount (key per step) or the calendar keeps the previous mode</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ current state screenshots ============ -->
+  <section class="flex flex-col gap-4">
+    <h2 class="text-xl font-bold">Current state (real screenshots)</h2>
+    <p class="muted text-sm">Same view, four scopes. Note the wizard chrome above each one: header row + four hub cards - that's ~90px of chrome before the calendar starts.</p>
+    <div role="tablist" class="tabs tabs-box self-start">
+      <input type="radio" name="shots" role="tab" class="tab" aria-label="Hub" checked>
+      <div role="tabpanel" class="tab-content pt-4">
+        <div class="shot-frame"><img class="shot" src="assets/shot-hub.png" alt="Setup hub with People stage"></div>
+      </div>
+      <input type="radio" name="shots" role="tab" class="tab" aria-label="Daily">
+      <div role="tabpanel" class="tab-content pt-4">
+        <div class="shot-frame"><img class="shot" src="assets/shot-daily.png" alt="Daily stage as plan view, Day 1"></div>
+      </div>
+      <input type="radio" name="shots" role="tab" class="tab" aria-label="Weekly">
+      <div role="tabpanel" class="tab-content pt-4">
+        <div class="shot-frame"><img class="shot" src="assets/shot-weekly.png" alt="Weekly stage as plan view, Week 1"></div>
+      </div>
+      <input type="radio" name="shots" role="tab" class="tab" aria-label="Monthly">
+      <div role="tabpanel" class="tab-content pt-4">
+        <div class="shot-frame"><img class="shot" src="assets/shot-monthly.png" alt="Monthly stage as plan view, month grid"></div>
+      </div>
+      <input type="radio" name="shots" role="tab" class="tab" aria-label="Plan">
+      <div role="tabpanel" class="tab-content pt-4">
+        <div class="shot-frame"><img class="shot" src="assets/shot-plan.png" alt="Plan tab, the same view unscoped"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ the design question ============ -->
+  <section class="flex flex-col gap-4">
+    <h2 class="text-xl font-bold">The open question: how much wizard chrome?</h2>
+    <p class="muted max-w-3xl text-sm">
+      The view under the chrome is now exactly the Plan view. The chrome should answer one thing well:
+      <b>where am I, what's left, and how do I move on</b> - without spending vertical space the calendar needs.
+      Four directions, smallest change first.
+    </p>
+
+    <div class="grid gap-4 lg:grid-cols-2">
+
+      <!-- Option A -->
+      <article class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-bold">A · Keep the hub cards</h3>
+            <span class="badge badge-ghost badge-sm">status quo</span>
+          </div>
+          <div class="rounded-lg border border-base-content/10 p-2 flex flex-col gap-1">
+            <div class="flex gap-1 items-center"><span class="text-[10px] font-bold">Guided setup</span><span class="badge badge-xs">← Back</span><span class="badge badge-xs badge-primary">Next →</span></div>
+            <div class="grid grid-cols-4 gap-1">
+              <div class="rounded border border-base-content/15 px-1 py-1 text-[9px]">People<br><span class="muted">2 people</span></div>
+              <div class="rounded border border-primary bg-primary/10 px-1 py-1 text-[9px] font-bold">Daily<br><span class="muted">done</span></div>
+              <div class="rounded border border-base-content/15 px-1 py-1 text-[9px]">Weekly<br><span class="muted">done</span></div>
+              <div class="rounded border border-base-content/15 px-1 py-1 text-[9px]">Monthly<br><span class="muted">done</span></div>
+            </div>
+            <div class="h-6 rounded bg-base-200 grid place-items-center text-[9px] muted">the plan view (calendar)</div>
+          </div>
+          <ul class="text-sm muted list-disc pl-5">
+            <li>Zero work; statuses are glanceable and click-to-jump</li>
+            <li>Eats two chrome rows; feels like a dashboard bolted onto a calendar</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Option B (recommended) -->
+      <article class="card bg-base-100 border-2 border-primary">
+        <div class="card-body p-4 gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-bold">B · Slim stepper in the header</h3>
+            <span class="badge badge-primary badge-sm">recommended</span>
+          </div>
+          <div class="rounded-lg border border-base-content/10 p-2 flex flex-col gap-1">
+            <div class="flex gap-1 items-center justify-between">
+              <span class="text-[10px] font-bold">Guided setup</span>
+              <span class="badge badge-xs">← Back</span><span class="badge badge-xs badge-primary">Next →</span><span class="badge badge-xs badge-ghost">Skip</span>
+            </div>
+            <ul class="steps steps-xs w-full">
+              <li class="step step-primary">People</li>
+              <li class="step step-primary">Daily</li>
+              <li class="step">Weekly</li>
+              <li class="step">Monthly</li>
+            </ul>
+            <div class="h-10 rounded bg-base-200 grid place-items-center text-[9px] muted">the plan view - one full row taller than today</div>
+          </div>
+          <ul class="text-sm muted list-disc pl-5">
+            <li>DaisyUI <code class="kbd kbd-sm">steps</code> - position + progress in one thin row; click a step to jump</li>
+            <li>Per-scale status (done / 1 of 2 placed) moves into step tooltips or a tiny badge</li>
+            <li>Honest about it being a sequence, which it is</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Option C -->
+      <article class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-bold">C · Floating coach bar</h3>
+            <span class="badge badge-ghost badge-sm">bolder</span>
+          </div>
+          <div class="rounded-lg border border-base-content/10 p-2 flex flex-col gap-1">
+            <div class="h-14 rounded bg-base-200 grid place-items-center text-[9px] muted">the plan view, full height</div>
+            <div class="flex items-center gap-2 justify-between rounded-full border border-base-content/15 bg-base-100 px-2 py-1 shadow-sm">
+              <span class="badge badge-xs badge-primary">2 / 4</span>
+              <span class="text-[9px] font-semibold">Daily - drop a task, it repeats every day</span>
+              <span class="badge badge-xs">‹</span><span class="badge badge-xs badge-primary">›</span>
+            </div>
+          </div>
+          <ul class="text-sm muted list-disc pl-5">
+            <li>Maximum calendar; hint line doubles as the stage instructions</li>
+            <li>Loses the map of all four scales - need a way to peek (e.g. tap "2 / 4")</li>
+            <li>Overlaps the footer hint text already inside the card - needs merging</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Option D -->
+      <article class="card bg-base-100 border border-base-content/10">
+        <div class="card-body p-4 gap-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="font-bold">D · Immersive first-run wizard</h3>
+            <span class="badge badge-ghost badge-sm">first-run only</span>
+          </div>
+          <div class="rounded-lg border border-dashed border-base-content/30 p-2 flex flex-col gap-1 bg-base-100">
+            <div class="flex gap-1 items-center justify-between">
+              <span class="text-[10px] font-bold">Build your routine</span>
+              <span class="badge badge-xs badge-ghost">exit to app</span>
+            </div>
+            <ul class="steps steps-xs w-full">
+              <li class="step step-primary">People</li><li class="step">Daily</li><li class="step">Weekly</li><li class="step">Monthly</li>
+            </ul>
+            <div class="h-8 rounded bg-base-200 grid place-items-center text-[9px] muted">plan view, no app navbar</div>
+          </div>
+          <ul class="text-sm muted list-disc pl-5">
+            <li>Only during first-run gating; revisiting Setup uses option B's chrome</li>
+            <li>Strongest "guided" feel for brand-new users; two chrome variants to maintain</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+    <p class="text-sm muted">Recommendation: <b>B</b> as the default chrome, optionally layered with <b>D</b> later for the first-run moment. B removes a chrome row, keeps all four statuses one click away, and is a ~30-line change inside SetupView. A is the fallback if you value the always-visible status cards over the vertical space.</p>
+  </section>
+
+  <!-- ============ decisions ============ -->
+  <section class="flex flex-col gap-4">
+    <h2 class="text-xl font-bold">Your calls</h2>
+    <p class="muted text-sm">Pick per question and queue the answer - each submit sends exactly that one answer.</p>
+
+    <div class="grid gap-4 lg:grid-cols-2">
+
+      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="chrome-direction"
+        onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('chrome'); if (v) window.lavish.queuePrompt('Setup chrome direction: ' + v, { tag: 'decision', text: 'Chrome direction: ' + v, element: event.currentTarget, data: { question: 'chrome-direction', answer: v } });">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">1 · Wizard chrome direction</h3>
+          <label class="label"><input type="radio" name="chrome" value="A - keep hub cards" class="radio radio-sm"> <span>A - keep hub cards</span></label>
+          <label class="label"><input type="radio" name="chrome" value="B - slim stepper in header" class="radio radio-sm"> <span>B - slim stepper in header (recommended)</span></label>
+          <label class="label"><input type="radio" name="chrome" value="C - floating coach bar" class="radio radio-sm"> <span>C - floating coach bar</span></label>
+          <label class="label"><input type="radio" name="chrome" value="B now + D for first-run" class="radio radio-sm"> <span>B now, immersive D for first-run later</span></label>
+          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
+        </div>
+      </form>
+
+      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="plan-view-features"
+        onsubmit="event.preventDefault(); const f = new FormData(event.currentTarget); const picked = f.getAll('feat').join('; ') || 'none'; window.lavish.queuePrompt('Setup plan-view features to keep: ' + picked, { tag: 'decision', text: 'Keep in setup: ' + picked, element: event.currentTarget, data: { question: 'plan-view-features', answer: picked } });">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">2 · Plan-view features inside setup</h3>
+          <p class="muted text-xs">Which Plan-tab features should stay visible in the setup stages?</p>
+          <label class="label"><input type="checkbox" name="feat" value="person filter chips" class="checkbox checkbox-sm"> <span>Person filter chips</span></label>
+          <label class="label"><input type="checkbox" name="feat" value="conflict badge" class="checkbox checkbox-sm"> <span>Conflict badge</span></label>
+          <label class="label"><input type="checkbox" name="feat" value="day/week/month switcher in monthly" class="checkbox checkbox-sm"> <span>Day/week/month switcher (monthly stage)</span></label>
+          <label class="label"><input type="checkbox" name="feat" value="category chips in rail" class="checkbox checkbox-sm"> <span>Category filter chips in the rail</span></label>
+          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
+        </div>
+      </form>
+
+      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="monthly-drill"
+        onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('drill'); if (v) window.lavish.queuePrompt('Monthly drill return: ' + v, { tag: 'decision', text: 'Monthly drill return: ' + v, element: event.currentTarget, data: { question: 'monthly-drill', answer: v } });">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">3 · Getting back from a day drill (monthly)</h3>
+          <label class="label"><input type="radio" name="drill" value="switcher only (current)" class="radio radio-sm"> <span>Switcher only - click "month" (current)</span></label>
+          <label class="label"><input type="radio" name="drill" value="dedicated back button" class="radio radio-sm"> <span>Dedicated "← Month" button like the old drill</span></label>
+          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
+        </div>
+      </form>
+
+      <form class="card bg-base-100 border border-base-content/10" data-lavish-question="empty-state"
+        onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('nudge'); if (v) window.lavish.queuePrompt('Empty-stage nudge: ' + v, { tag: 'decision', text: 'Empty-stage nudge: ' + v, element: event.currentTarget, data: { question: 'empty-state', answer: v } });">
+        <div class="card-body p-4 gap-2">
+          <h3 class="font-bold text-sm">4 · Empty stages</h3>
+          <p class="muted text-xs">Today an empty stage shows "Nothing here yet - add one above…". Should the first empty stage get a stronger nudge?</p>
+          <label class="label"><input type="radio" name="nudge" value="keep current text hint" class="radio radio-sm"> <span>Keep the text hint - it's enough</span></label>
+          <label class="label"><input type="radio" name="nudge" value="big CTA with inline name field" class="radio radio-sm"> <span>Bigger CTA - focus the name field automatically</span></label>
+          <label class="label"><input type="radio" name="nudge" value="skip suggestion" class="radio radio-sm"> <span>Suggest skipping the scale instead</span></label>
+          <button type="submit" class="btn btn-primary btn-sm self-start">Queue this answer</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ risks ============ -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-xl font-bold">Risks &amp; notes</h2>
+    <div class="overflow-x-auto">
+      <table class="table table-sm bg-base-100 rounded-xl border border-base-content/10">
+        <thead><tr><th>Risk</th><th>Why it matters</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>Setup stops feeling special</td><td>If the chrome disappears entirely, first-run users may not realize they're being guided</td><td>Keep at least a stepper (B); D covers the first-run moment explicitly</td></tr>
+          <tr><td>Pattern drags vs Plan drags confusion</td><td>Same view, different write semantics (pattern re-anchor vs single move)</td><td>Footer hint differs per scope; toasts name the effect ("every Mon, Tue")</td></tr>
+          <tr><td>Vertical space on laptops</td><td>Chrome + card header + footer hint already compete with the timeline</td><td>B removes one row; C/merging hints removes another</td></tr>
+          <tr><td>Stage switch state leaks</td><td>React reuses the component across stages without a key</td><td>Already handled with key={step}; add a regression note</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="text-xs muted pb-8">
+    Screenshots: live app on localhost:3100 (fresh Levi/Nina data). Artifact theme: DaisyUI pastel - the app's own theme.
+  </footer>
+</main>
+</body>
+</html>

@@ -82,45 +82,43 @@ export default function SetupView({
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3">
-      <header className="flex flex-wrap items-center gap-2">
-        <div className="grow">
-          <h2 className="text-base font-bold leading-tight">Guided setup</h2>
-          <p className="text-[11px] opacity-60 leading-snug">
-            Step {idx + 1} of {STEPS.length} · build the routine stays ordinary in the Tasks tab anytime.
-          </p>
+      <header className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-base font-bold leading-tight grow">Guided setup</h2>
+          <button className="btn btn-sm btn-ghost" onClick={back} disabled={idx === 0} aria-label="Previous step">
+            ← Back
+          </button>
+          {idx < STEPS.length - 1 ? (
+            <button className="btn btn-sm btn-primary" onClick={next}>
+              Next →
+            </button>
+          ) : (
+            <button className="btn btn-sm btn-primary" onClick={onFinish}>
+              Done ✓
+            </button>
+          )}
+          <button className="btn btn-sm btn-ghost" onClick={onSkip} title="Skip the walkthrough - the Tasks tab is always available">
+            Skip for now →
+          </button>
         </div>
-        <button className="btn btn-sm btn-ghost" onClick={back} disabled={idx === 0} aria-label="Previous step">
-          ← Back
-        </button>
-        {idx < STEPS.length - 1 ? (
-          <button className="btn btn-sm btn-primary" onClick={next}>
-            Next →
-          </button>
-        ) : (
-          <button className="btn btn-sm btn-primary" onClick={onFinish}>
-            Done ✓
-          </button>
-        )}
-        <button className="btn btn-sm btn-ghost" onClick={onSkip} title="Skip the walkthrough - the Tasks tab is always available">
-          Skip for now →
-        </button>
+        <ul className="steps steps-xs w-full -translate-x-6 lg:-translate-x-8">
+          {steps.map((s, i) => (
+            <li
+              key={s.short}
+              className={`step${i <= idx ? " step-primary" : ""} cursor-pointer`}
+              data-content={i < idx ? "✓" : i + 1}
+              onClick={() => go(STEPS[i])}
+              aria-current={step === STEPS[i] ? "step" : undefined}
+              title={`${s.label} - ${s.status}`}
+            >
+              <span className="text-[11px] whitespace-nowrap">
+                {s.short.charAt(0).toUpperCase() + s.short.slice(1)}
+                {!s.ok && <span className="badge badge-warning badge-xs ml-1">{s.status}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
       </header>
-
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        {steps.map((s, i) => (
-          <button
-            key={s.short}
-            onClick={() => go(STEPS[i])}
-            className={`flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2 text-left ${
-              step === STEPS[i] ? "border-primary bg-primary/10" : s.ok ? "border-base-content/15 bg-base-100" : "border-base-content/15 bg-base-100"
-            }`}
-            aria-pressed={step === STEPS[i]}
-          >
-            <span className="text-xs font-bold">{s.label}</span>
-            <span className={`text-[10px] leading-snug ${s.ok ? "opacity-70" : "text-warning"}`}>{s.status}</span>
-          </button>
-        ))}
-      </div>
 
       <div className="min-h-0 flex-1">{renderStage()}</div>
     </section>

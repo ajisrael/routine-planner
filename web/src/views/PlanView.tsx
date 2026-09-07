@@ -80,6 +80,7 @@ export default function PlanView({
   const [hourHeight, setHourHeight] = useState(DEFAULT_HOUR_HEIGHT);
   const [formTaskId, setFormTaskId] = useState<number | null>(null);
   const [formOccurrence, setFormOccurrence] = useState<ScheduledEvent | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
 
   const allDays = useMemo(allTemplateDays, []);
@@ -369,8 +370,8 @@ export default function PlanView({
           armedTaskId={armedTaskId}
           onArm={setArmedTaskId}
           onOpenLibrary={cad == null ? onOpenLibrary : undefined}
+          onAdd={cad != null ? () => setAddOpen(true) : undefined}
           cadenceFilter={cad}
-          quickAdd={cad ?? undefined}
           removeZone={cad === "weekly"}
           placedBadge={cad != null}
           title={rail?.title}
@@ -424,7 +425,7 @@ export default function PlanView({
                 <h3 className="font-bold ml-2 text-sm lg:text-base">{rangeTitle}</h3>
               </div>
               <div className="flex items-center gap-2 flex-wrap justify-end">
-                {(cad == null || cad === "monthly") && (
+                {(cad == null || (cad === "monthly" && mode !== "month")) && (
                   <div role="tablist" className="join">
                     {(["day", "week", "month"] as PlanMode[]).map((m) => (
                       <button
@@ -534,6 +535,9 @@ export default function PlanView({
             }}
           />
         </>
+      )}
+      {cad != null && (
+        <TaskForm open={addOpen} task={null} presetCadence={cad} onClose={() => setAddOpen(false)} />
       )}
     </section>
   );

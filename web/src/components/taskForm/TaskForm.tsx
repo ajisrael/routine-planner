@@ -68,11 +68,14 @@ export function TaskForm({
   open,
   task,
   occurrence,
+  presetCadence,
   onClose,
 }: {
   open: boolean;
   task: Task | null;
   occurrence?: ScheduledEvent | null;
+  /** Cadence preselected for a brand-new task (setup scopes open it per stage). */
+  presetCadence?: TaskCadence;
   onClose: () => void;
 }): React.JSX.Element | null {
   const categories = usePlannerStore((s) => s.categories);
@@ -97,7 +100,7 @@ export function TaskForm({
   useEffect(() => {
     if (!open) return;
     if (!task) {
-      setForm(blankForm());
+      setForm(blankForm(presetCadence));
       return;
     }
     const rule = store.recurrenceRules.find((r) => r.taskId === task.id);
@@ -528,15 +531,15 @@ export function TaskForm({
   );
 }
 
-function blankForm(): FormState {
+function blankForm(presetCadence?: TaskCadence): FormState {
   return {
     name: "",
     duration: 45,
     categoryId: null,
     assignees: new Set<number>(),
-    cadence: "custom",
-    ruleType: "none",
-    daysOfWeek: new Set<number>(),
+    cadence: presetCadence ?? "custom",
+    ruleType: presetCadence === "daily" ? "weekly_days" : "none",
+    daysOfWeek: new Set<number>(presetCadence === "daily" ? DOW_ORDER : []),
     intervalDays: 2,
     dayOfMonth: 1,
     notes: "",
