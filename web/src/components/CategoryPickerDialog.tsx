@@ -119,7 +119,7 @@ export function CategoryPickerDialog({
             ) : undefined
           }
         >
-          <span className="inline-block w-3.5 h-3.5 rounded-full shrink-0" style={{ background: c.color ?? "var(--color-base-content)" }} />
+          <span className="dot-ring inline-block w-3.5 h-3.5 rounded-full shrink-0" style={{ background: c.color ?? "var(--color-base-content)" }} />
           <span className="text-sm font-medium truncate min-w-0" title={c.name}>
             {c.name}
           </span>

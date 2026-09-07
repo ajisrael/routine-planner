@@ -136,10 +136,10 @@ function MonthCell({
         armed ? `Place ${armedTaskName} on ${dayDowLabel(date)} ${dayNumber(date)}` : onDayClick ? `Open ${dayDowLabel(date)} ${dayNumber(date)}` : undefined
       }
     >
-      <div className={`mb-0.5 flex items-baseline gap-1 ${armed || onDayClick ? "text-primary" : "opacity-70"}`}>
+      <div className={`mb-0.5 flex items-baseline gap-1 ${armed ? "accent-text" : "opacity-70"}`}>
         <span className="font-bold">{dayNumber(date)}</span>
         <span className="text-[9px] opacity-60">{dayDowLabel(date)}</span>
-        {weekOf(date) === 5 && <span className="text-[9px] opacity-40">tail</span>}
+        {weekOf(date) === 5 && <span className="text-[9px] opacity-60">tail</span>}
       </div>
       {shown.map((ev) => (
         <MonthPill

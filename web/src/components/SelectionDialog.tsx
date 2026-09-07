@@ -52,7 +52,7 @@ export function SelectionDialog({
       <div className="modal-box max-w-sm p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-base font-bold">{title}</h3>
-          <span className="text-[10px] opacity-40 whitespace-nowrap shrink-0">{count}</span>
+          <span className="text-[10px] opacity-60 whitespace-nowrap shrink-0">{count}</span>
         </div>
 
         <input
@@ -66,7 +66,7 @@ export function SelectionDialog({
 
         <div className="flex flex-col gap-0.5 min-h-16 max-h-64 overflow-y-auto">
           {rows}
-          {emptyText != null && <p className="text-xs opacity-50 p-2">{emptyText}</p>}
+          {emptyText != null && <p className="text-xs opacity-70 p-2">{emptyText}</p>}
         </div>
 
         {addRow != null && <div className="flex gap-2 items-center border-t border-base-content/10 pt-2">{addRow}</div>}

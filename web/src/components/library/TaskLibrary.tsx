@@ -49,7 +49,7 @@ export function LibraryRail({
         </div>
         <div className="lib-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
           {filtered.length === 0 && (
-            <p className="text-xs opacity-50 p-2">No tasks yet — add some in the Tasks tab.</p>
+            <p className="text-xs opacity-70 p-2">No tasks yet — add some in the Tasks tab.</p>
           )}
           {filtered.map((t) => (
             <RailRow key={t.id} task={t} armed={armedTaskId === t.id} onArm={onArm} />
@@ -73,7 +73,7 @@ function FilterChip({
 }): React.JSX.Element {
   return (
     <button className={`btn btn-sm rounded-full h-11${active ? " btn-primary" : " btn-ghost"}`} onClick={onClick}>
-      {dot != null && <span className="inline-block w-2 h-2 rounded-full" style={{ background: dot }} />}
+      {dot != null && <span className="dot-ring inline-block w-2 h-2 rounded-full" style={{ background: dot }} />}
       {label}
     </button>
   );

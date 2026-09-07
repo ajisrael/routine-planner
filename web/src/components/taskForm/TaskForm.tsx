@@ -321,10 +321,10 @@ export function TaskForm({
                     value={form.dayOfMonth}
                     onChange={(e) => set("dayOfMonth", Math.min(TEMPLATE_DAYS, Math.max(1, Number(e.target.value) || 1)))}
                   />
-                  <span className="opacity-50">(Day {form.dayOfMonth} of the 30-day template)</span>
+                  <span className="opacity-70">(Day {form.dayOfMonth} of the 30-day template)</span>
                 </label>
               )}
-              <p className="text-xs font-medium text-primary">{preview}</p>
+              <p className="text-xs font-medium accent-text">{preview}</p>
             </div>
           )}
 
@@ -356,7 +356,7 @@ export function TaskForm({
               aria-haspopup="dialog"
             >
               <span
-                className="inline-block w-3.5 h-3.5 rounded-full shrink-0"
+                className="dot-ring inline-block w-3.5 h-3.5 rounded-full shrink-0"
                 style={{
                   background: currentCategory?.color ?? "var(--color-base-content)",
                   opacity: currentCategory ? 1 : 0.3,
@@ -413,7 +413,7 @@ export function TaskForm({
               {busy ? <span className="loading loading-spinner loading-sm" /> : "Save task"}
             </button>
           </div>
-          <p className="text-[11px] opacity-50">
+          <p className="text-[11px] opacity-70">
             Recurring tasks start at 09:00 — drop one on the calendar and every occurrence follows that time.
             Moving a single occurrence never touches its siblings; changing frequency regenerates the template.
           </p>

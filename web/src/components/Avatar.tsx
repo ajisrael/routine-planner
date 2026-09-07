@@ -28,7 +28,7 @@ export function Avatar({
 /** Overlapping avatar stack with a +N tail. */
 export function AvatarStack({ users, max = 4 }: { users: User[]; max?: number }): React.JSX.Element {
   if (users.length === 0) {
-    return <span className="text-[10px] opacity-50">no assignees</span>;
+    return <span className="text-[10px] opacity-70">no assignees</span>;
   }
   const shown = users.slice(0, max);
   const rest = users.length - shown.length;

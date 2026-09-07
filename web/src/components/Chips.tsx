@@ -37,7 +37,7 @@ export function PersonFilterChips({
 export function ConflictBadge({ count }: { count: number }): React.JSX.Element {
   if (count === 0) {
     return (
-      <span className="badge badge-success badge-outline gap-1 border-0 bg-success/15 text-xs">
+      <span className="badge badge-success gap-1 border-0 text-xs">
         <span aria-hidden>✓</span> no conflicts
       </span>
     );
@@ -53,7 +53,7 @@ export function ConflictBadge({ count }: { count: number }): React.JSX.Element {
 export function CategoryDot({ category }: { category: Category | undefined }): React.JSX.Element {
   return (
     <span
-      className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+      className="dot-ring inline-block w-2.5 h-2.5 rounded-full shrink-0"
       style={{ background: category?.color ?? "var(--color-base-content)", opacity: category ? 1 : 0.3 }}
       title={category?.name ?? "No category"}
     />

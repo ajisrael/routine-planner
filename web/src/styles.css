@@ -52,6 +52,80 @@
   flex-grow: 0;
 }
 
+/* ---------- contrast tokens (CONTRAST-FINDINGS.md) ---------- */
+:root {
+  /* Informational accent text: primary works on dark surfaces, but Pastel
+     light's primary is a near-white lavender - readable accent text needs a
+     darkened primary there. */
+  --accent-text: var(--color-primary);
+  /* Conflict rings: the pale light-theme error needs darkening to keep the
+     2px ring >= 3:1 against the white-ish day column. */
+  --conflict-ring: var(--color-error);
+}
+html[data-theme="pastel"] {
+  --accent-text: oklch(0.45 0.15 306.703);
+  --conflict-ring: color-mix(in oklab, var(--color-error) 35%, black);
+  /* Pastel light's error is a pale rose: as text or button/badge background it
+     lands at ~1.9-3.3:1. Darkened variant for light-theme destructive UI. */
+  --error-strong: color-mix(in oklab, var(--color-error) 50%, black);
+}
+html[data-theme="pastel"] .text-error {
+  color: var(--error-strong);
+}
+/* Same pale-pairing problem for warning badges/buttons in light (3.06:1). */
+html[data-theme="pastel"] .badge-warning,
+html[data-theme="pastel"] .btn-warning {
+  color: color-mix(in oklab, var(--color-warning) 30%, black);
+}
+html[data-theme="pastel"] .badge-error,
+html[data-theme="pastel"] .btn-error {
+  background: var(--error-strong);
+  color: white;
+}
+.accent-text {
+  color: var(--accent-text);
+}
+
+/* Small solid dots (category colors): a hairline ring keeps them >= 3:1
+   against both theme bases, including legacy stored colors. */
+.dot-ring {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-base-content) 40%, transparent);
+}
+
+/* Toasts: daisyUI v5 renders colored alerts as a soft tint with same-family
+   content text, ~3.6:1 in light and ~1.6:1 in dark. Keep the soft tint and
+   pair it with a text hue that passes instead: the bright hue on dark, a
+   darkened hue on light. */
+.toast .alert-success {
+  color: var(--color-success);
+}
+.toast .alert-info {
+  color: var(--color-info);
+}
+.toast .alert-warning {
+  color: var(--color-warning);
+}
+.toast .alert-error {
+  color: var(--color-error);
+}
+html[data-theme="pastel"] .toast .alert-success {
+  color: color-mix(in oklab, var(--color-success) 35%, black);
+}
+html[data-theme="pastel"] .toast .alert-info {
+  color: color-mix(in oklab, var(--color-info) 35%, black);
+}
+html[data-theme="pastel"] .toast .alert-warning {
+  color: color-mix(in oklab, var(--color-warning) 30%, black);
+}
+html[data-theme="pastel"] .toast .alert-error {
+  color: color-mix(in oklab, var(--color-error) 35%, black);
+}
+
+/* Inactive tabs: daisyUI's dim sits at ~3.4:1 (light) / 4.28:1 (dark). */
+.tabs-box .tab:not(.tab-active) {
+  color: color-mix(in oklab, var(--color-base-content) 78%, transparent);
+}
+
 :where(.grid, .flex) > * {
   min-width: 0;
 }
@@ -156,7 +230,7 @@ html.kb-open dialog.modal > .modal-box {
 }
 .event-block.conflict {
   box-shadow:
-    0 0 0 2px var(--color-error),
+    0 0 0 2px var(--conflict-ring),
     0 1px 3px rgba(0, 0, 0, 0.14);
   z-index: 3;
 }
@@ -196,7 +270,7 @@ html.kb-open dialog.modal > .modal-box {
   position: absolute;
   top: 2px;
   right: 3px;
-  color: var(--color-error);
+  color: var(--conflict-ring);
   font-size: 11px;
   line-height: 1;
 }
@@ -216,26 +290,6 @@ html.kb-open dialog.modal > .modal-box {
   font-size: 10px;
   color: var(--color-primary);
   font-weight: 600;
-}
-
-.now-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--color-error);
-  z-index: 4;
-  pointer-events: none;
-}
-.now-line::before {
-  content: "";
-  position: absolute;
-  left: -4px;
-  top: -3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-error);
 }
 
 .lib-row {
@@ -262,7 +316,7 @@ html.kb-open dialog.modal > .modal-box {
   border-left: 3px solid var(--ev-cat);
 }
 .month-pill.conflict {
-  box-shadow: 0 0 0 1.5px var(--color-error);
+  box-shadow: 0 0 0 1.5px var(--conflict-ring);
 }
 .month-pill.out {
   opacity: 0.45;

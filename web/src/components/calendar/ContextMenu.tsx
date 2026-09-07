@@ -54,7 +54,7 @@ export function ContextMenu({ state, onClose, onEdit, onSync, onDeleteOne, onDel
         role="menu"
         aria-label="Occurrence actions"
       >
-        <div className="px-3 py-1.5 text-[11px] opacity-50 truncate">
+        <div className="px-3 py-1.5 text-[11px] opacity-70 truncate">
           {fmtTime(event.startMinute)} · {event.eventDate}
         </div>
         <button className={item} onClick={() => onEdit(event)} role="menuitem">

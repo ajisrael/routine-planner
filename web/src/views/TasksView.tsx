@@ -48,7 +48,7 @@ export default function TasksView(): React.JSX.Element {
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-xs opacity-50 mr-1">Filter:</span>
+        <span className="text-xs opacity-70 mr-1">Filter:</span>
         <button
           className={`btn btn-sm rounded-full h-11${filter === null ? " btn-primary" : " btn-ghost"}`}
           onClick={() => setFilter(null)}
@@ -61,7 +61,7 @@ export default function TasksView(): React.JSX.Element {
             className={`btn btn-sm rounded-full gap-1 h-11${filter === c.id ? " btn-primary" : " btn-ghost"}`}
             onClick={() => setFilter(c.id)}
           >
-            <span className="inline-block w-2 h-2 rounded-full" style={{ background: c.color ?? "transparent" }} />
+            <span className="dot-ring inline-block w-2 h-2 rounded-full" style={{ background: c.color ?? "transparent" }} />
             {c.name}
           </button>
         ))}
@@ -150,14 +150,14 @@ function TaskCard({ task, onEdit }: { task: Task; onEdit: () => void }): React.J
         <div className="flex flex-wrap gap-1.5 text-[10px]">
           <span className="badge badge-ghost border-base-content/10 gap-1">🕒 {task.durationMinutes} min</span>
           <span
-            className={`badge gap-1 border-0 ${rule && rule.ruleType !== "none" ? "badge-primary bg-primary/15 text-primary" : "badge-warning bg-warning/20 text-warning-content"}`}
+            className={`badge gap-1 border-0 ${rule && rule.ruleType !== "none" ? "badge-primary" : "badge-warning"}`}
           >
             🔁 {freqLabel}
           </span>
           {scheduledTotal > 0 ? (
             <span className="badge badge-ghost border-base-content/10 gap-1">📅 {scheduledTotal}× scheduled</span>
           ) : (
-            <span className="badge badge-warning border-0 bg-warning/25 text-warning-content">unscheduled</span>
+            <span className="badge badge-warning border-0">unscheduled</span>
           )}
         </div>
 

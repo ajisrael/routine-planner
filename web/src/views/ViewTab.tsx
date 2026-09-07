@@ -106,7 +106,7 @@ export default function ViewTab(): React.JSX.Element {
               <h3 className="font-bold text-sm lg:text-base ml-1">{rangeTitle}</h3>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs opacity-50">Person:</span>
+              <span className="text-xs opacity-70">Person:</span>
               <PersonFilterChips users={store.users} value={person} onChange={setPerson} />
             </div>
           </div>
@@ -150,7 +150,7 @@ export default function ViewTab(): React.JSX.Element {
             <TimeGrid dates={rangeDates} events={visibleEvents} conflicts={conflicts} interactive={false} />
           )}
 
-          <p className="text-[11px] opacity-50">
+          <p className="text-[11px] opacity-70">
             Read-only preview of the repeating template. Conflicts show as red rings — they're warnings only.
             Use <b>Plan</b> to edit.
           </p>

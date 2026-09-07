@@ -47,7 +47,7 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
             <div className="w-12 h-12 rounded-2xl bg-primary-content/15 grid place-items-center text-2xl">🗓️</div>
             <div>
               <h1 className="text-2xl font-bold leading-tight">Routine Planner</h1>
-              <p className="text-primary-content/70 text-sm">One plan for the whole family</p>
+              <p className="text-primary-content text-sm">One plan for the whole family</p>
             </div>
           </div>
         </div>
@@ -57,7 +57,7 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
             <br />
             every single day.
           </h2>
-          <p className="text-primary-content/80 max-w-md">
+          <p className="text-primary-content max-w-md">
             Time-block your family's recurring routines — chores, school runs, practices, dinners — and
             see everyone's week in one shared place.
           </p>
@@ -108,7 +108,7 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
 
               {loginUsers.length > 0 && (
                 <>
-                  <div className="flex items-center gap-3 text-xs opacity-50">
+                  <div className="flex items-center gap-3 text-xs opacity-70">
                     <div className="divider my-0 flex-1" /> quick login <div className="divider my-0 flex-1" />
                   </div>
 
@@ -128,13 +128,13 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
                 </>
               )}
 
-              <p className="text-xs opacity-50 flex items-center gap-2">
+              <p className="text-xs opacity-70 flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-success" />
                 Running on your local network · adults log in, kids (personas) are assigned, never log in
               </p>
             </div>
           </div>
-          <p className="text-center text-xs opacity-40 mt-4">
+          <p className="text-center text-xs opacity-60 mt-4">
             {loginUsers.length === 0
               ? "No planning accounts yet — typing your name creates the first one."
               : "Typing an unknown name creates a new planning account."}
