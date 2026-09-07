@@ -5,6 +5,7 @@ import type {
   ScheduledEvent,
   Snapshot,
   Task,
+  TaskCadence,
   User,
 } from "@planner/shared";
 
@@ -54,6 +55,7 @@ export interface TaskCreatePayload {
   notes?: string | null;
   categoryId?: number | null;
   assigneeIds?: number[];
+  cadence?: TaskCadence;
   recurrence?: TaskRulePayload;
 }
 
@@ -64,6 +66,7 @@ export interface TaskUpdatePayload {
   categoryId?: number | null;
   active?: boolean;
   assigneeIds?: number[];
+  cadence?: TaskCadence;
 }
 
 export interface TaskResponse {
@@ -86,8 +89,8 @@ export const api = {
   snapshot: (): Promise<Snapshot> => request("GET", "/api/snapshot"),
 
   users: (): Promise<User[]> => request("GET", "/api/users"),
-  createPersona: (displayName: string): Promise<User> =>
-    request("POST", "/api/users", { displayName }),
+  createUser: (username: string, displayName?: string): Promise<User> =>
+    request("POST", "/api/users", displayName ? { username, displayName } : { username }),
   renameUser: (id: number, displayName: string): Promise<User> =>
     request("PUT", `/api/users/${id}`, { displayName }),
   deleteUser: (id: number): Promise<{ ok: boolean }> => request("DELETE", `/api/users/${id}`),

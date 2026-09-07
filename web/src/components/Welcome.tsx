@@ -13,7 +13,7 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
   useEffect(() => {
     api
       .users()
-      .then((users) => setLoginUsers(users.filter((u) => u.isLoginUser)))
+      .then(setLoginUsers)
       .catch(() => setLoginUsers([]));
   }, []);
 
@@ -130,7 +130,7 @@ export function Welcome({ onLogin }: { onLogin: (user: User) => void }): React.J
 
               <p className="text-xs opacity-70 flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-success" />
-                Running on your local network · adults log in, kids (personas) are assigned, never log in
+                Running on your local network · anyone who's on a routine logs in by name
               </p>
             </div>
           </div>

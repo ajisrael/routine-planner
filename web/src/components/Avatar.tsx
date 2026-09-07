@@ -17,7 +17,7 @@ export function Avatar({
     <span
       className={`avatar-dot${stack ? " stack" : ""}`}
       style={{ background: personColor(user.id), width: size, height: size, fontSize: size * 0.45 }}
-      title={title ?? `${user.displayName}${user.isLoginUser ? "" : " (persona)"}`}
+      title={title ?? user.displayName}
       aria-label={title ?? user.displayName}
     >
       {initial(user.displayName)}

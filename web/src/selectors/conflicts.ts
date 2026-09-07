@@ -89,7 +89,7 @@ export function filterEventsByPerson(
   return events.filter((e) => taskIds.has(e.taskId));
 }
 
-/** Users usable as person filters (login users + personas alike, §5.9). */
+/** Users usable as person filters (everyone, §5.9). */
 export function filterableUsers(users: User[]): User[] {
   return users;
 }

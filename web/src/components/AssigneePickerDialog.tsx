@@ -8,7 +8,7 @@ import { PickerAddRow, PickerRow, SelectionDialog } from "./SelectionDialog";
 /**
  * "Pick assignees" dialog for the task form (multi-select — tasks can have
  * several responsible people; shared assignees drive conflict warnings).
- * Same mechanism as the category picker: search, "＋ Add" creates a persona
+ * Same mechanism as the category picker: search, "＋ Add" creates a user
  * immediately (applied by default) with an ✕ to undo in-dialog; Apply
  * commits, Cancel reverts.
  */
@@ -23,8 +23,8 @@ export function AssigneePickerDialog({
   onClose: (picked: number[] | undefined) => void;
 }): React.JSX.Element | null {
   const users = usePlannerStore((s) => s.users);
-  const createPersona = usePlannerStore((s) => s.createPersona);
-  const deletePersona = usePlannerStore((s) => s.deletePersona);
+  const createUser = usePlannerStore((s) => s.createUser);
+  const deleteUser = usePlannerStore((s) => s.deleteUser);
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [sessionNew, setSessionNew] = useState<Set<number>>(new Set());
@@ -58,12 +58,12 @@ export function AssigneePickerDialog({
   const addNew = async (): Promise<void> => {
     const name = newName.trim();
     if (!name) return;
-    if (users.some((u) => u.displayName.toLowerCase() === name.toLowerCase())) {
+    if (users.some((u) => u.displayName.toLowerCase() === name.toLowerCase() || u.username.toLowerCase() === name.toLowerCase())) {
       toast.warning(`“${name}” already exists`);
       return;
     }
     setBusy(true);
-    const created = await createPersona(name);
+    const created = await createUser(name, name);
     setBusy(false);
     if (created) {
       setPicked((s) => new Set(s).add(created.id)); // apply by default
@@ -75,7 +75,7 @@ export function AssigneePickerDialog({
   const removeNew = async (id: number): Promise<void> => {
     const user = users.find((u) => u.id === id);
     if (!user || !sessionNew.has(id)) return;
-    if (await deletePersona(id)) {
+    if (await deleteUser(id)) {
       setSessionNew((s) => {
         const next = new Set(s);
         next.delete(id);
@@ -99,7 +99,7 @@ export function AssigneePickerDialog({
           value={newName}
           onChange={setNewName}
           onAdd={() => void addNew()}
-          placeholder="New persona's name…"
+          placeholder="Add person…"
           disabled={busy}
         />
       }
@@ -112,7 +112,6 @@ export function AssigneePickerDialog({
           remove={
             sessionNew.has(u.id) ? (
               <>
-                <span className="badge badge-xs badge-ghost shrink-0">persona</span>
                 <button
                   type="button"
                   className="ml-auto btn btn-ghost btn-xs shrink-0 hover:text-error"
@@ -134,10 +133,10 @@ export function AssigneePickerDialog({
           <span className="text-sm font-medium truncate min-w-0" title={u.displayName}>
             {u.displayName}
           </span>
-          {!sessionNew.has(u.id) && !u.isLoginUser && <span className="badge badge-xs badge-ghost shrink-0">persona</span>}
+          <span className="text-[10px] opacity-50 shrink-0">@{u.username}</span>
         </PickerRow>
       ))}
-      emptyText={visible.length === 0 ? "No matches — add a persona below." : undefined}
+      emptyText={visible.length === 0 ? "No matches — add a person below." : undefined}
     />
   );
 }

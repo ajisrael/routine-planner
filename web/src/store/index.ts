@@ -66,9 +66,9 @@ interface PlannerState {
   deleteEvent: (id: number) => Promise<boolean | null>;
   syncEvent: (id: number, scope: "all" | "future") => Promise<boolean | null>;
 
-  createPersona: (displayName: string) => Promise<User | null>;
+  createUser: (username: string, displayName?: string) => Promise<User | null>;
   renameUser: (id: number, displayName: string) => Promise<boolean | null>;
-  deletePersona: (id: number) => Promise<boolean | null>;
+  deleteUser: (id: number) => Promise<boolean | null>;
   createCategory: (name: string, color?: string | null) => Promise<Category | null>;
   updateCategory: (id: number, name?: string, color?: string | null) => Promise<boolean | null>;
   deleteCategory: (id: number) => Promise<boolean | null>;
@@ -271,15 +271,15 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
       }),
 
     // ---- users / categories ---------------------------------------------
-    createPersona: (displayName) =>
+    createUser: (username, displayName) =>
       withRecovery(async () => {
-        const u = await api.createPersona(displayName);
+        const u = await api.createUser(username, displayName);
         set((s) => ({ users: upsertById(s.users, u) }));
         useSession.getState().pulse();
         return u;
       }),
 
-    deletePersona: (id) =>
+    deleteUser: (id) =>
       withRecovery(async () => {
         await api.deleteUser(id);
         set((s) => ({
