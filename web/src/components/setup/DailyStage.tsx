@@ -86,17 +86,6 @@ export function DailyStage(): React.JSX.Element {
 
   return (
     <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
-      <div className="flex min-h-0 flex-col gap-2">
-        <QuickAddTask cadence="daily" />
-        <RoutineRail
-          title="Daily tasks"
-          caption="Drag a task onto the timeline, or tap it then tap a slot."
-          tasks={store.tasks.filter((t) => t.active && t.cadence === "daily")}
-          armedTaskId={armedTaskId}
-          onArm={setArmedTaskId}
-          emptyHint="No daily tasks yet - add one above, then drag it onto the day."
-        />
-      </div>
       <DndContext
         sensors={[sensor]}
         collisionDetection={pointerWithin}
@@ -105,6 +94,17 @@ export function DailyStage(): React.JSX.Element {
         onDragEnd={onDragEnd}
         onDragCancel={() => setGhost(null)}
       >
+        <div className="flex min-h-0 flex-col gap-2">
+          <QuickAddTask cadence="daily" />
+          <RoutineRail
+            title="Daily tasks"
+            caption="Drag a task onto the timeline, or tap it then tap a slot."
+            tasks={store.tasks.filter((t) => t.active && t.cadence === "daily")}
+            armedTaskId={armedTaskId}
+            onArm={setArmedTaskId}
+            emptyHint="No daily tasks yet - add one above, then drag it onto the day."
+          />
+        </div>
         <div className="card flex h-full min-h-0 flex-col overflow-hidden bg-base-100 border border-base-content/10">
           <div className="card-body flex min-h-0 flex-1 flex-col gap-2 p-3">
             <div className="flex items-center justify-between gap-2">

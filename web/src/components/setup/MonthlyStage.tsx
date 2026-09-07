@@ -59,14 +59,23 @@ export function MonthlyStage(): React.JSX.Element {
     const overData = over.data.current as { type: string; date?: string } | undefined;
     if (!overData) return;
 
+    if (active.type === "library-task") {
+      if (drill != null && overData.type === "day") {
+        void placeMonthly(active.taskId!, drill, dropMinute(event, over));
+      } else if (drill == null && overData.type === "month-day" && overData.date) {
+        openDay(overData.date, active.taskId!);
+      }
+      return;
+    }
+    if (active.type !== "event") return;
     if (drill != null) {
-      if (active.type !== "event" || overData.type !== "day") return;
+      if (overData.type !== "day") return;
       const ev = store.events.find((e) => e.id === active.eventId);
       if (ev) void placeMonthly(ev.taskId, drill, dropMinute(event, over));
       return;
     }
     // month phase: dragging a monthly pill onto a day re-anchors that day
-    const ev = active.type === "event" ? store.events.find((e) => e.id === active.eventId) : undefined;
+    const ev = store.events.find((e) => e.id === active.eventId);
     if (ev && overData.type === "month-day" && overData.date) {
       void placeMonthly(ev.taskId, overData.date, referenceStartMinute(ev.taskId));
     }
@@ -74,12 +83,17 @@ export function MonthlyStage(): React.JSX.Element {
 
   return (
     <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
-      <DndContext sensors={[sensor]} collisionDetection={pointerWithin} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={[sensor]}
+        collisionDetection={pointerWithin}
+        onDragStart={() => setArmedTaskId(null)}
+        onDragEnd={onDragEnd}
+      >
         <div className="flex min-h-0 flex-col gap-2">
           <QuickAddTask cadence="monthly" />
           <RoutineRail
             title="Monthly tasks"
-            caption="Tap a task, then a date - its day opens and you place it at a time."
+            caption="Drag onto a date to open its day, or tap a task then a date."
             tasks={store.tasks.filter((t) => t.active && t.cadence === "monthly")}
             armedTaskId={armedTaskId}
             onArm={setArmedTaskId}

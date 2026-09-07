@@ -153,18 +153,6 @@ export function WeeklyStage(): React.JSX.Element {
 
   return (
     <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
-      <div className="flex min-h-0 flex-col gap-2">
-        <QuickAddTask cadence="weekly" />
-        <RoutineRail
-          title="Weekly tasks"
-          caption="Drag onto a day. Dragging a placed block to another day swaps that weekday; dropping it here removes it."
-          tasks={store.tasks.filter((t) => t.active && t.cadence === "weekly")}
-          armedTaskId={armedTaskId}
-          onArm={setArmedTaskId}
-          removeZone
-          emptyHint="No weekly tasks yet - add one above, then drag it onto a weekday."
-        />
-      </div>
       <DndContext
         sensors={[sensor]}
         collisionDetection={pointerWithin}
@@ -173,6 +161,18 @@ export function WeeklyStage(): React.JSX.Element {
         onDragEnd={onDragEnd}
         onDragCancel={() => setGhost(null)}
       >
+        <div className="flex min-h-0 flex-col gap-2">
+          <QuickAddTask cadence="weekly" />
+          <RoutineRail
+            title="Weekly tasks"
+            caption="Drag onto a day. Dragging a placed block to another day swaps that weekday; dropping it here removes it."
+            tasks={store.tasks.filter((t) => t.active && t.cadence === "weekly")}
+            armedTaskId={armedTaskId}
+            onArm={setArmedTaskId}
+            removeZone
+            emptyHint="No weekly tasks yet - add one above, then drag it onto a weekday."
+          />
+        </div>
         <div className="card flex h-full min-h-0 flex-col overflow-hidden bg-base-100 border border-base-content/10">
           <div className="card-body flex min-h-0 flex-1 flex-col gap-2 p-3">
             <div className="flex items-center justify-between gap-2">
