@@ -94,8 +94,8 @@ describe("task + recurrence + events lifecycle", () => {
   let taskId = 0;
   let personId = 0;
 
-  it("creates a persona for assignment tests", async () => {
-    const res = await call("POST", "/api/users", { displayName: "TestKid" });
+  it("creates a user for assignment tests", async () => {
+    const res = await call("POST", "/api/users", { username: "TestKid" });
     expect(res.status).toBe(201);
     personId = (res.json as { id: number }).id;
   });
@@ -242,12 +242,41 @@ describe("task + recurrence + events lifecycle", () => {
 });
 
 describe("users & categories", () => {
-  it("creates a persona and renames it", async () => {
-    const created = await call("POST", "/api/users", { displayName: "Kid" });
+  it("creates a user with a username and renames it", async () => {
+    const created = await call("POST", "/api/users", { username: "Kid" });
     expect(created.status).toBe(201);
-    const id = (created.json as { id: number }).id;
-    const renamed = await call("PUT", `/api/users/${id}`, { displayName: "Kid Jr." });
+    const u = created.json as { id: number; username: string; displayName: string };
+    expect(u.username).toBe("Kid");
+    expect(u.displayName).toBe("Kid"); // displayName defaults to username
+    const renamed = await call("PUT", `/api/users/${u.id}`, { displayName: "Kid Jr." });
     expect((renamed.json as { displayName: string }).displayName).toBe("Kid Jr.");
+  });
+
+  it("accepts an explicit displayName and rejects a duplicate username", async () => {
+    const created = await call("POST", "/api/users", { username: "Ana", displayName: "Grandma Ana" });
+    expect(created.status).toBe(201);
+    expect((created.json as { displayName: string }).displayName).toBe("Grandma Ana");
+    expect((await call("POST", "/api/users", { username: "aNa" })).status).toBe(409);
+  });
+
+  it("a user created in People can log in directly", async () => {
+    const created = await call("POST", "/api/users", { username: "Momo" });
+    const id = (created.json as { id: number }).id;
+    const login = await call("POST", "/api/auth/login", { username: "momo" });
+    expect(login.status).toBe(200);
+    expect((login.json as { id: number }).id).toBe(id); // same account, no duplicate
+  });
+
+  it("the logged-in user cannot delete themselves", async () => {
+    await call("POST", "/api/auth/login", { username: "Mom" });
+    const me = (await call("GET", "/api/auth/me")).json as { id: number };
+    expect((await call("DELETE", `/api/users/${me.id}`)).status).toBe(400);
+  });
+
+  it("another user can be deleted (assignments cascade)", async () => {
+    const created = await call("POST", "/api/users", { username: "Dup" });
+    const other = (created.json as { id: number }).id;
+    expect((await call("DELETE", `/api/users/${other}`)).status).toBe(200);
   });
 
   it("category CRUD", async () => {
@@ -257,5 +286,31 @@ describe("users & categories", () => {
     expect((await call("PUT", `/api/categories/${id}`, { color: "nope" })).status).toBe(400);
     expect((await call("DELETE", `/api/categories/${id}`)).status).toBe(200);
     expect((await call("DELETE", `/api/categories/${id}`)).status).toBe(404);
+  });
+});
+
+describe("task cadence", () => {
+  it("round-trips cadence on create and update", async () => {
+    const created = await call("POST", "/api/tasks", {
+      name: "Morning run",
+      durationMinutes: 30,
+      cadence: "daily",
+      recurrence: { ruleType: "weekly_days", daysOfWeek: [1, 2, 3, 4, 5, 6, 7], refStartMinute: 420 },
+    });
+    expect(created.status).toBe(201);
+    const id = (created.json as { task: { id: number; cadence: string } }).task;
+    expect(id.cadence).toBe("daily");
+    const updated = await call("PUT", `/api/tasks/${id.id}`, { cadence: "monthly" });
+    expect(((updated.json as { task: { cadence: string } }).task).cadence).toBe("monthly");
+    await call("DELETE", `/api/tasks/${id.id}`);
+  });
+
+  it("defaults to custom and rejects invalid values", async () => {
+    const created = await call("POST", "/api/tasks", { name: "Solo", durationMinutes: 30 });
+    expect((created.json as { task: { cadence: string } }).task.cadence).toBe("custom");
+    const id = (created.json as { task: { id: number } }).task.id;
+    expect((await call("POST", "/api/tasks", { name: "Y", durationMinutes: 30, cadence: "bogus" })).status).toBe(400);
+    expect((await call("PUT", `/api/tasks/${id}`, { cadence: "nope" })).status).toBe(400);
+    await call("DELETE", `/api/tasks/${id}`);
   });
 });

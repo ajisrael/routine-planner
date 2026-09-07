@@ -13,9 +13,8 @@ import { db } from "../db.js";
 export function mapUser(r: Record<string, unknown>): User {
   return {
     id: r.id as number,
-    username: (r.username as string | null) ?? null,
+    username: r.username as string,
     displayName: r.display_name as string,
-    isLoginUser: r.is_login_user === 1,
     createdAt: r.created_at as string,
   };
 }
@@ -32,6 +31,7 @@ export function mapTask(r: Record<string, unknown>): Task {
     notes: (r.notes as string | null) ?? null,
     categoryId: (r.category_id as number | null) ?? null,
     active: r.active === 1,
+    cadence: r.cadence as Task["cadence"],
   };
 }
 

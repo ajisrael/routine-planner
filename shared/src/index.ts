@@ -5,13 +5,14 @@
  * handlers and the client store all speak the same shape.
  */
 
-/** Family member. `is_login_user=1` for Mom/Dad; personas never log in. */
+/** Guided-setup cadence for a task definition. */
+export type TaskCadence = "daily" | "weekly" | "monthly" | "custom";
+
+/** Family member. Every user can log in by name (`username` is the account key). */
 export interface User {
   id: number;
-  /** Present only for login users; set by `/api/auth/login`. */
-  username: string | null;
+  username: string;
   displayName: string;
-  isLoginUser: boolean;
   createdAt: string;
 }
 
@@ -32,9 +33,11 @@ export interface Task {
   categoryId: number | null;
   /** Soft-delete flag; active=false hides from library + calendar. */
   active: boolean;
+  /** Guided-setup grouping: when the user intends it to recur. */
+  cadence: TaskCadence;
 }
 
-/** Many-to-many: people (login users and personas) responsible for a task. */
+/** Many-to-many: people (all users) responsible for a task. */
 export interface TaskAssignee {
   taskId: number;
   userId: number;

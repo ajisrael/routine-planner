@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import type { RecurrenceRuleType, ScheduledEvent } from "@planner/shared";
+import type { RecurrenceRuleType, ScheduledEvent, TaskCadence } from "@planner/shared";
 import { TEMPLATE_DAYS } from "@planner/shared";
 import { db } from "../db.js";
 import { assigneeKey, broadcaster, type Broadcaster } from "../services/broadcaster.js";
@@ -16,6 +16,8 @@ const RULE_TYPES: RecurrenceRuleType[] = [
   "monthly_date",
   "monthly_weekday",
 ];
+
+export const CADENCES: TaskCadence[] = ["daily", "weekly", "monthly", "custom"];
 
 interface RuleBody {
   ruleType: RecurrenceRuleType;
@@ -90,16 +92,6 @@ function validateRule(body: RuleBody): string | null {
         : `dayOfMonth must be 1–${TEMPLATE_DAYS} (template days)`;
     case "monthly_weekday":
       return "monthly_weekday is not representable in the 30-day template";
-    case "monthly_weekday": {
-      const { monthWeek, monthDow } = body;
-      if (!Number.isInteger(monthWeek) || !((monthWeek as number) === -1 || ((monthWeek as number) >= 1 && (monthWeek as number) <= 4))) {
-        return "monthWeek must be 1–4 or -1";
-      }
-      if (!Number.isInteger(monthDow) || (monthDow as number) < 1 || (monthDow as number) > 7) {
-        return "monthDow must be 1–7";
-      }
-      return null;
-    }
   }
 }
 
@@ -158,6 +150,12 @@ function parseDuration(v: unknown): number | null {
   return Number.isInteger(n) && n >= 15 && n <= 1440 && n % 15 === 0 ? n : null;
 }
 
+function parseCadence(v: unknown): TaskCadence | null {
+  return typeof v === "string" && (CADENCES as readonly string[]).includes(v)
+    ? (v as TaskCadence)
+    : null;
+}
+
 // GET /api/tasks — library list
 tasksRouter.get("/", (_req: Request, res: Response) => {
   const rows = db
@@ -179,6 +177,8 @@ tasksRouter.post("/", (req: Request, res: Response) => {
     const err = validateRule(recurrence);
     if (err) return bad(res, err);
   }
+  const cadence = body.cadence === undefined ? "custom" : parseCadence(body.cadence);
+  if (cadence == null) return bad(res, "cadence must be one of daily/weekly/monthly/custom");
   const assignees = parseAssigneeIds(body.assigneeIds) ?? [];
   const categoryId =
     body.categoryId == null ? null : Number(body.categoryId);
@@ -188,8 +188,10 @@ tasksRouter.post("/", (req: Request, res: Response) => {
 
   const taskId = db.transaction((): number => {
     const info = db
-      .prepare("INSERT INTO tasks (name, duration_minutes, notes, category_id) VALUES (?, ?, ?, ?)")
-      .run(name, duration, typeof body.notes === "string" && body.notes ? body.notes : null, categoryId);
+      .prepare(
+        "INSERT INTO tasks (name, duration_minutes, notes, category_id, cadence) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(name, duration, typeof body.notes === "string" && body.notes ? body.notes : null, categoryId, cadence);
     const newId = Number(info.lastInsertRowid);
     const insA = db.prepare("INSERT OR IGNORE INTO task_assignees (task_id, user_id) VALUES (?, ?)");
     for (const uid of assignees) insA.run(newId, uid);
@@ -242,10 +244,12 @@ tasksRouter.put("/:id", (req: Request, res: Response) => {
     return bad(res, "unknown categoryId");
   }
   const active = body.active === undefined ? row.active : body.active ? 1 : 0;
+  const cadence = body.cadence === undefined ? (row.cadence as TaskCadence) : parseCadence(body.cadence);
+  if (cadence == null) return bad(res, "cadence must be one of daily/weekly/monthly/custom");
 
   db.prepare(
-    "UPDATE tasks SET name = ?, duration_minutes = ?, notes = ?, category_id = ?, active = ? WHERE id = ?",
-  ).run(name, duration, notes, categoryId, active, id);
+    "UPDATE tasks SET name = ?, duration_minutes = ?, notes = ?, category_id = ?, active = ?, cadence = ? WHERE id = ?",
+  ).run(name, duration, notes, categoryId, active, cadence, id);
   const task = mapTask(getTask(id)!);
   broadcaster.upsert("tasks", task.id, task);
   if (Array.isArray(body.assigneeIds)) {

@@ -18,14 +18,14 @@ function currentUser(req: Request): Record<string, unknown> | undefined {
   const raw = req.cookies?.[COOKIE_NAME];
   const id = Number(raw);
   if (!raw || !Number.isInteger(id)) return undefined;
-  return db.prepare("SELECT * FROM users WHERE id = ? AND is_login_user = 1").get(id) as
+  return db.prepare("SELECT * FROM users WHERE id = ?").get(id) as
     | Record<string, unknown>
     | undefined;
 }
 
 // POST /api/auth/login  {username}
-//   find is_login_user=1 user by case-insensitive username; create if absent;
-//   set httpOnly cookie with user id. (ARCHITECTURE.md §5.5)
+//   find user by case-insensitive username; every user can log in, so
+//   create if absent; set httpOnly cookie with user id. (ARCHITECTURE.md §5.5)
 authRouter.post("/login", (req: Request, res: Response) => {
   const username = typeof req.body?.username === "string" ? req.body.username.trim() : "";
   if (!username || username.length > 40) {
@@ -33,12 +33,12 @@ authRouter.post("/login", (req: Request, res: Response) => {
     return;
   }
   let row = db
-    .prepare("SELECT * FROM users WHERE is_login_user = 1 AND LOWER(username) = LOWER(?)")
+    .prepare("SELECT * FROM users WHERE LOWER(username) = LOWER(?)")
     .get(username) as Record<string, unknown> | undefined;
   if (!row) {
-    // Typing an unknown name creates a new login account.
+    // Typing an unknown name creates a new account.
     const info = db
-      .prepare("INSERT INTO users (username, display_name, is_login_user) VALUES (?, ?, 1)")
+      .prepare("INSERT INTO users (username, display_name) VALUES (?, ?)")
       .run(username, username);
     row = db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid) as Record<
       string,
