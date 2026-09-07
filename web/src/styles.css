@@ -56,6 +56,21 @@
   min-width: 0;
 }
 
+/* ---------- keyboard-aware dialogs (mobile) ----------
+   When the on-screen keyboard covers part of the screen (lib/keyboard.ts
+   tracks it via the visualViewport API), the daisyUI vertically-centered
+   .modal-box would sit half-hidden behind the keyboard. Top-align it inside
+   the visible slice instead and let its own scroll area handle the rest.
+   --vv-h/--vv-top are published by lib/keyboard.ts; on Android with
+   interactive-widget=resizes-content the layout viewport shrinks instead, so
+   kb-open never triggers and daisyUI's default centering is left alone. */
+html.kb-open dialog.modal > .modal-box {
+  align-self: start;
+  margin-top: calc(var(--vv-top, 0px) + 0.75rem);
+  margin-bottom: auto;
+  max-height: calc(var(--vv-h, 100dvh) - 1.5rem);
+}
+
 :where(p, h1, h2, h3, h4, h5, h6, li, dd, blockquote, figcaption, td, th, .badge) {
   overflow-wrap: anywhere;
 }
