@@ -303,8 +303,8 @@ export function TaskForm({
 
   const runSync = async (): Promise<void> => {
     if (!occurrence) return;
-    await store.syncEvent(occurrence.id, "all");
-    toast.success("Time synced to all occurrences of this task");
+    await store.syncEvent(occurrence.id, "all", form.duration);
+    toast.success("Time and length synced to all occurrences of this task");
   };
 
   const dayCircles = (key: "days" | "customDays"): React.JSX.Element[] =>
@@ -385,7 +385,7 @@ export function TaskForm({
                     type="button"
                     className="btn btn-ghost btn-xs freq-preview"
                     onClick={() => void runSync()}
-                    title="Sync the time to all occurrences of this task"
+                    title="Sync the time and length to all occurrences of this task"
                   >
                     ⤒ Sync Tasks
                   </button>

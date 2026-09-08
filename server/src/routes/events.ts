@@ -199,7 +199,9 @@ eventsRouter.delete("/:id", (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-// POST /api/events/:id/sync {scope: 'all' | 'future'} — propagate to siblings (§5.5)
+// POST /api/events/:id/sync {scope: 'all' | 'future', durationMinutes?} —
+// propagate to siblings (§5.5). An explicit durationMinutes re-lengthens the
+// anchor and siblings (task-form "Sync Tasks" pushes the dialog's duration).
 eventsRouter.post("/:id/sync", (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const scope: SyncScope = req.body?.scope === "future" ? "future" : "all";
@@ -207,6 +209,15 @@ eventsRouter.post("/:id/sync", (req: Request, res: Response) => {
     res.status(404).json({ error: "event not found" });
     return;
   }
-  const updated = syncOccurrenceToSiblings(id, scope, broadcaster);
+  let duration: number | undefined;
+  if (req.body?.durationMinutes !== undefined) {
+    const n = Number(req.body.durationMinutes);
+    if (!Number.isInteger(n) || n < 15 || n > 1440 || n % 15 !== 0) {
+      res.status(400).json({ error: "durationMinutes must be a multiple of 15 (15–1440)" });
+      return;
+    }
+    duration = n;
+  }
+  const updated = syncOccurrenceToSiblings(id, scope, broadcaster, duration);
   res.json({ ok: true, updated });
 });

@@ -64,7 +64,7 @@ interface PlannerState {
   createEvent: (payload: { taskId: number; eventDate: string; startMinute: number; endMinute?: number }) => Promise<ScheduledEvent | null>;
   moveEvent: (id: number, payload: EventMovePayload) => Promise<ScheduledEvent | null>;
   deleteEvent: (id: number) => Promise<boolean | null>;
-  syncEvent: (id: number, scope: "all" | "future") => Promise<boolean | null>;
+  syncEvent: (id: number, scope: "all" | "future", durationMinutes?: number) => Promise<boolean | null>;
 
   createUser: (username: string, displayName?: string) => Promise<User | null>;
   renameUser: (id: number, displayName: string) => Promise<boolean | null>;
@@ -263,9 +263,9 @@ export const usePlannerStore = create<PlannerState>((set, get) => {
         return true;
       }),
 
-    syncEvent: (id, scope) =>
+    syncEvent: (id, scope, durationMinutes) =>
       withRecovery(async () => {
-        const res = await api.syncEvent(id, scope);
+        const res = await api.syncEvent(id, scope, durationMinutes);
         useSession.getState().pulse();
         return res.ok;
       }),

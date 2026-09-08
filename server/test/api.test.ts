@@ -188,6 +188,27 @@ describe("task + recurrence + events lifecycle", () => {
     expect(snap2.events.filter((e) => e.startMinute === 1020).length).toBeGreaterThanOrEqual(29);
   });
 
+  it("sync with explicit durationMinutes re-lengthens anchor + siblings", async () => {
+    const snap = (await call("GET", "/api/snapshot")).json as {
+      events: Array<{ id: number; startMinute: number; endMinute: number; taskId: number }>;
+    };
+    const anchor = snap.events.find((e) => e.taskId === taskId)!;
+    const res = await call("POST", `/api/events/${anchor.id}/sync`, {
+      scope: "all",
+      durationMinutes: 60,
+    });
+    expect(res.status).toBe(200);
+    const after = (await call("GET", "/api/snapshot")).json as {
+      events: Array<{ startMinute: number; endMinute: number; taskId: number }>;
+    };
+    const mine = after.events.filter((e) => e.taskId === taskId);
+    expect(mine.length).toBe(30);
+    expect(mine.every((e) => e.startMinute === 1020 && e.endMinute === 1080)).toBe(true);
+
+    const badReq = await call("POST", `/api/events/${anchor.id}/sync`, { scope: "all", durationMinutes: 17 });
+    expect(badReq.status).toBe(400);
+  });
+
   it("person filter on GET /api/events", async () => {
     const res = await call("GET", `/api/events?person=${personId}`);
     expect((res.json as unknown[]).length).toBeGreaterThan(0);

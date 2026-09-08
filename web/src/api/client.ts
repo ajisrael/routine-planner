@@ -132,8 +132,12 @@ export const api = {
   moveEvent: (id: number, payload: EventMovePayload): Promise<ScheduledEvent> =>
     request("PUT", `/api/events/${id}`, payload),
   deleteEvent: (id: number): Promise<{ ok: boolean }> => request("DELETE", `/api/events/${id}`),
-  syncEvent: (id: number, scope: "all" | "future"): Promise<{ ok: boolean; updated: number }> =>
-    request("POST", `/api/events/${id}/sync`, { scope }),
+  syncEvent: (
+    id: number,
+    scope: "all" | "future",
+    durationMinutes?: number,
+  ): Promise<{ ok: boolean; updated: number }> =>
+    request("POST", `/api/events/${id}/sync`, durationMinutes == null ? { scope } : { scope, durationMinutes }),
 };
 
 export { ApiError };
