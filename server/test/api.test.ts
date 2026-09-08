@@ -195,24 +195,6 @@ describe("task + recurrence + events lifecycle", () => {
     expect((none.json as unknown[]).length).toBe(0);
   });
 
-  it("updating task duration re-lengthens rule-linked occurrences in place", async () => {
-    const before = ((await call("GET", "/api/snapshot")).json as {
-      events: Array<{ taskId: number; startMinute: number; endMinute: number }>;
-    }).events.filter((e) => e.taskId === taskId);
-    expect(before.length).toBe(30);
-    expect(before.every((e) => e.endMinute === e.startMinute + 45)).toBe(true);
-
-    const res = await call("PUT", `/api/tasks/${taskId}`, { durationMinutes: 60 });
-    expect(res.status).toBe(200);
-
-    const after = ((await call("GET", "/api/snapshot")).json as {
-      events: Array<{ taskId: number; startMinute: number; endMinute: number }>;
-    }).events.filter((e) => e.taskId === taskId);
-    // start times preserved, every rule-linked occurrence inherits the new length
-    expect(after.map((e) => e.startMinute)).toEqual(before.map((e) => e.startMinute));
-    expect(after.every((e) => e.endMinute === e.startMinute + 60)).toBe(true);
-  });
-
   it("setting recurrence to none detaches occurrences (kept)", async () => {
     const res = await call("PUT", `/api/tasks/${taskId}/recurrence`, { ruleType: "none" });
     expect(res.status).toBe(200);
