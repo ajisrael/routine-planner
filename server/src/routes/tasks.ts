@@ -259,6 +259,28 @@ tasksRouter.put("/:id", (req: Request, res: Response) => {
   db.prepare(
     "UPDATE tasks SET name = ?, duration_minutes = ?, notes = ?, category_id = ?, active = ?, cadence = ? WHERE id = ?",
   ).run(name, duration, notes, categoryId, active, cadence, id);
+  // Duration change: rule-linked occurrences inherit the new length while
+  // keeping their own start times; one-off blocks (rule_id IS NULL) keep
+  // hand-placed/resized ends untouched (DATA_MODEL.md §7).
+  if (body.durationMinutes !== undefined && duration !== (row.duration_minutes as number)) {
+    const affected = db
+      .prepare(
+        "SELECT id FROM scheduled_events WHERE task_id = ? AND rule_id IS NOT NULL AND end_minute != start_minute + ?",
+      )
+      .all(id, duration) as Array<{ id: number }>;
+    if (affected.length > 0) {
+      db.prepare(
+        "UPDATE scheduled_events SET end_minute = start_minute + ? WHERE task_id = ? AND rule_id IS NOT NULL",
+      ).run(duration, id);
+      for (const { id: eventId } of affected) {
+        broadcaster.upsert(
+          "events",
+          eventId,
+          mapEvent(db.prepare("SELECT * FROM scheduled_events WHERE id = ?").get(eventId) as Record<string, unknown>),
+        );
+      }
+    }
+  }
   const task = mapTask(getTask(id)!);
   broadcaster.upsert("tasks", task.id, task);
   if (Array.isArray(body.assigneeIds)) {

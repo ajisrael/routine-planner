@@ -369,7 +369,7 @@ function EventBlockView({
         <span className="opacity-70">
           {fmtTime(event.startMinute)}–{fmtTime(event.endMinute)}
         </span>
-        <AvatarStack users={assigneeUsers} max={3} />
+        {assigneeUsers.length > 0 && <AvatarStack users={assigneeUsers} max={3} />}
       </div>
     </>
   );
