@@ -552,7 +552,7 @@ export function TaskForm({
 function blankForm(presetCadence?: TaskCadence): FormState {
   return {
     name: "",
-    duration: 45,
+    duration: 30,
     categoryId: null,
     assignees: new Set<number>(),
     cadence: presetCadence ?? "custom",
