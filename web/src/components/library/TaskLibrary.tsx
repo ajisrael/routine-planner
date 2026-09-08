@@ -16,6 +16,7 @@ export function LibraryRail({
   onArm,
   onOpenLibrary,
   onAdd,
+  onEditTask,
   cadenceFilter = null,
   removeZone = false,
   placedBadge = false,
@@ -26,6 +27,7 @@ export function LibraryRail({
   onArm: (taskId: number | null) => void;
   onOpenLibrary?: () => void;
   onAdd?: () => void;
+  onEditTask?: (taskId: number) => void;
   cadenceFilter?: TaskCadence | null;
   removeZone?: boolean;
   placedBadge?: boolean;
@@ -89,6 +91,7 @@ export function LibraryRail({
               task={t}
               armed={armedTaskId === t.id}
               onArm={onArm}
+              onEdit={onEditTask ? () => onEditTask(t.id) : undefined}
               removeZone={removeZone}
               placedBadge={placedBadge}
             />
@@ -125,12 +128,14 @@ function RailRow({
   task,
   armed,
   onArm,
+  onEdit,
   removeZone,
   placedBadge,
 }: {
   task: Task;
   armed: boolean;
   onArm: (taskId: number | null) => void;
+  onEdit?: () => void;
   removeZone: boolean;
   placedBadge: boolean;
 }): React.JSX.Element {
@@ -181,6 +186,19 @@ function RailRow({
         {placedBadge ? "" : "🔁 "}{freqLabel} · 🕒 {task.durationMinutes}m
       </span>
       <AvatarStack users={assigneeUsers} max={2} />
+      {onEdit && (
+        <button
+          className="btn btn-ghost btn-xs btn-square shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          aria-label={`Edit ${task.name}`}
+          title="Edit task"
+        >
+          ✎
+        </button>
+      )}
     </div>
   );
 }

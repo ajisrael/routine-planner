@@ -371,6 +371,11 @@ export default function PlanView({
           onArm={setArmedTaskId}
           onOpenLibrary={cad == null ? onOpenLibrary : undefined}
           onAdd={cad != null ? () => setAddOpen(true) : undefined}
+          onEditTask={(id) => {
+            setAddOpen(false);
+            setFormOccurrence(null);
+            setFormTaskId(id);
+          }}
           cadenceFilter={cad}
           removeZone={cad === "weekly"}
           placedBadge={cad != null}
@@ -451,7 +456,7 @@ export default function PlanView({
                 interactive
                 armedTask={armedTask}
                 lockTaskIds={lockTaskIds}
-                onEventClick={cad == null ? openOccurrenceForm : (ev) => openDay(ev.eventDate)}
+                onEventClick={openOccurrenceForm}
                 onDayClick={openDay}
                 onSlotClick={cad == null ? (date) => placeArmed(date, null) : openDay}
                 onEventContextMenu={cad == null ? (ev, e) => setMenu({ event: ev, x: e.clientX, y: e.clientY }) : undefined}
@@ -466,7 +471,7 @@ export default function PlanView({
                 ghost={ghost}
                 lockTaskIds={lockTaskIds}
                 onHourHeight={setHourHeight}
-                onEventClick={cad == null ? openOccurrenceForm : undefined}
+                onEventClick={openOccurrenceForm}
                 onSlotClick={(date, minute) => placeArmed(date, minute)}
                 onResize={
                   cad == null
@@ -537,7 +542,18 @@ export default function PlanView({
         </>
       )}
       {cad != null && (
-        <TaskForm open={addOpen} task={null} presetCadence={cad} onClose={() => setAddOpen(false)} />
+        <>
+          <TaskForm open={addOpen} task={null} presetCadence={cad} onClose={() => setAddOpen(false)} />
+          <TaskForm
+            open={formTaskId != null}
+            task={formTask}
+            occurrence={formOccurrence}
+            onClose={() => {
+              setFormTaskId(null);
+              setFormOccurrence(null);
+            }}
+          />
+        </>
       )}
     </section>
   );
