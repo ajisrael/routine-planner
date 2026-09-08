@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { RecurrenceRule, ScheduledEvent, Task, TaskCadence, RuleShape } from "@planner/shared";
-import { occurrenceDays, TEMPLATE_DAYS } from "@planner/shared";
+import type { RecurrenceRule, ScheduledEvent, Task, TaskCadence } from "@planner/shared";
 import { usePlannerStore, assigneesOfTask } from "../../store";
 import type { TaskRulePayload } from "../../api/client";
 import { toast } from "../../store/toasts";
@@ -104,20 +103,22 @@ function previewFor(freq: FreqState): string {
       ? "Repeats weekly — pick the days above"
       : `Repeats every ${freq.customN} ${freq.customUnit}${freq.customN > 1 ? "s" : ""} — pick the days below`;
   }
-  const days = occurrenceDays(payload as unknown as RuleShape, 1, TEMPLATE_DAYS);
-  if (freq.mode === "daily") return "Repeats every day · 30 occurrences — Day 1 through Day 30";
+  if (freq.mode === "daily") return "Repeats every day";
   if (freq.mode === "weekly") {
     const picked = [...freq.days].sort((a, b) => a - b).map((d) => DOW_LABELS[d - 1]).join(", ");
-    return `Repeats weekly on ${picked} · ~${days.length} occurrences`;
+    return `Repeats weekly on ${picked}`;
   }
-  const unit = freq.customUnit;
-  const label = `Repeats every ${freq.customN} ${unit}${freq.customN > 1 ? "s" : ""}`;
   const on =
-    unit === "week"
+    freq.customUnit === "week"
       ? ` on ${[...freq.customDays].sort((a, b) => a - b).map((d) => DOW_LABELS[d - 1]).join(", ")}`
       : "";
-  const list = days.slice(0, 4).map((d) => `Day ${d}`).join(", ");
-  return `${label}${on} · ${days.length} occurrences — ${list}${days.length > 4 ? ", …" : ""}`;
+  const every =
+    freq.customN === 1
+      ? freq.customUnit === "day"
+        ? "every day"
+        : "weekly"
+      : `every ${freq.customN} ${freq.customUnit}s`;
+  return `Repeats ${every}${on}`;
 }
 
 /**
@@ -444,7 +445,7 @@ export function TaskForm({
                   </div>
                 </div>
               )}
-              <p className="preview">{preview}</p>
+              <p className="preview" title={preview}>{preview}</p>
             </fieldset>
 
             <fieldset className="fieldset p-0 gap-2 min-w-0">
