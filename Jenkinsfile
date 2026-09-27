@@ -32,16 +32,36 @@ pipeline {
         // stage, so the agent host needs no Node toolchain. better-sqlite3
         // compiles from source unless a prebuilt binary matches, hence the
         // build toolchain in the container.
+        //
+        // Jenkins runs in a container with the host docker socket mounted, so
+        // the daemon resolves -v paths against the *host*, not this container.
+        // A -v "$PWD" bind therefore silently mounts an empty host directory.
+        // Mounting the jenkins-home volume by name keeps /var/jenkins_home at
+        // the same path the agent already sees, so -w "$PWD" stays correct and
+        // the branch/workspace name is never hardcoded.
+        //
+        // The container runs as root: apk cannot write /var/log/apk.log as a
+        // non-root user, so apk add fails and node-gyp then cannot find python
+        // for better-sqlite3. node_modules in the workspace is therefore
+        // root-owned, which is fine because every build does the same.
         stage('Typecheck & Test') {
             steps {
                 sh '''
-                    docker run --rm -v "$PWD":/app -w /app node:22-alpine sh -c '
-                        set -e
-                        apk add --no-cache python3 make g++ >/dev/null
-                        npm ci
-                        npm run typecheck
-                        npm run test --workspaces --if-present -- --reporter=default --reporter=junit --outputFile.junit=test-results.xml
-                    '
+                    docker run --rm \
+                        -v jenkins-home:/var/jenkins_home \
+                        -w "$PWD" \
+                        node:22-alpine sh -c '
+                            set -e
+                            apk add --no-cache python3 make g++ >/dev/null
+                            npm ci
+                            # server and web import @planner/shared through its
+                            # dist/ types, and typecheck runs with --noEmit, so
+                            # shared has to be built first. Same order the root
+                            # build script uses.
+                            npm run build -w @planner/shared
+                            npm run typecheck
+                            npm run test --workspaces --if-present -- --reporter=default --reporter=junit --outputFile.junit=test-results.xml
+                        '
                 '''
             }
             post {
